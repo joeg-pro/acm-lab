@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Adds static route to provide access to a Bre Metal Slot's private
+# provisioning network/subnet via routing to the GAP VM for the slot.
+# Can optionally do the same for the data network as well.
+#
+# You can use this on a  "isntaller machine" from which the OCP installer
+# will be run to provide needed provisioning access.  You can also use
+# this on the GAP VM for Slot X to give cluster nodes on Slot X access
+# to the provisioning network of some other Slot Y (as is needed for
+# an ACM Hub to be able to provision a spoke in another slot).
+
+me=$(basename $0)
+
+opt_flags="dDpP"
+
+add_route_for_data=0
+add_route_for_provisioning=1
+
+while getopts "$opt_flags" OPTION; do
+   case "$OPTION" in
+      d) add_route_for_data=1
+         ;;
+      D) add_route_for_data=0
+         ;;
+      p) add_route_for_provisioning=1
+         ;;
+      P) add_route_for_provisioning=0
+         ;;
+      ?) exit 1
+         ;;
+   esac
+done
+shift "$(($OPTIND -1))"
+
+slot_nr="${1:-$ACM_LAB_BM_SLOT_NR}"
+gap_last_octet_on_158="$2"
+
+if [[ -z "$slot_nr" ]]; then
+   echo >&2 "Syntax: $me <slot_nr> [<gap_last_octet_on_158>]"
+   exit 1
+fi
+
+if [[ -z "$gap_last_octet_on_158" ]]; then
+   gap_last_octet_on_158=$(( 100 + $slot_nr ))
+fi
+
+our_intf_on_158="ens160"  
+# TODOs:
+# - Figure this out dynamically
+# - Remove dependency that connection and device names are the same
+
+gap_vm_ip_addr="10.1.158.$gap_last_octet_on_158"
+
+provisioning_subnet="172.22.$slot_nr.0/24"
+data_subnet="172.31.$slot_nr.0/24"
+
+# TODO: Fetch current routes and merge in new ones so we don't duplicate
+# if this script is run more than once.
+
+if [[ $add_route_for_provisioning -eq 1 ]]; then
+   echo "Adding route to direct provisioning subnet $provisioning_subnet to $gap_vm_ip_addr."
+   sudo nmcli con mod $our_intf_on_158 +ipv4.routes "$provisioning_subnet $gap_vm_ip_addr"
+fi
+
+if [[ $add_route_for_data -eq 1 ]]; then
+   echo "Adding route to direct data subnet $data_subnet to $gap_vm_ip_addr."
+   sudo nmcli con mod $our_intf_on_158 +ipv4.routes "$data_subnet $gap_vm_ip_addr"
+fi
+
+sudo nmcli con reload $our_intf_on_158
+sudo nmcli dev reapply $our_intf_on_158
+
+echo "Routing changes have been re-applied."

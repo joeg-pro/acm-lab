@@ -1,0 +1,52 @@
+#!/bin/python3
+
+# Author: J. M. Gdaniec, Jan 2021
+
+from bmc_common import *
+
+import requests
+import json
+import sys
+import traceback
+
+# Main:
+
+try:
+
+   set_dbg_volume_level(0)
+
+   if len(sys.argv) < 2:
+      emsg("Machine short hostname required.")
+      exit(1)
+
+   if len(sys.argv)> 2:
+      action = sys.argv[2]
+   else:
+      action = "status"
+
+   bmc_conn = FogBMCConnection(sys.argv[1])
+
+   action = action.lower()
+   if action in ["status", "state"]:
+      resp = bmc_conn.get_power_state()
+      print(resp)
+
+   elif action in ["forceoff", "off"]:
+      resp = bmc_conn.system_power_off()
+
+   elif action in ["on"]:
+      resp = bmc_conn.system_power_on()
+
+   else:
+      emsg("Unrecognized actoin: %s" % action)
+      exit(1)
+
+except BMCRequestError as exc:
+   die(str(exc))
+
+except Exception:
+   traceback.print_exc()
+   die("Unhandled exception!")
+
+
+

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Adds SSH known-host entries for a given host.
+
+me=$(basename $0)
+
+host="$1"
+
+if [[ -z "$host" ]]; then
+   >&2 echo "Syntax: $me <ip-address>"
+   exit 5
+fi
+
+ssh-keygen -R $host
+ssh-keyscan -t rsa -H $host >> ~/.ssh/known_hosts

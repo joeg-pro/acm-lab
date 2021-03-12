@@ -1,0 +1,602 @@
+
+machines:
+- name: fog01
+  bmc:
+    address: fog01-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog01-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:e4:12
+    nic2:
+      id: 2
+      device_name: /dev/eno2
+      mac_address: 2c:ea:7f:d5:e4:13
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.27
+      fqhn: fog01.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.27
+      fqhn: fog01.cluster.internal
+
+- name: fog02
+  bmc:
+    address: fog02-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog02-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:e2:12
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:e2:13
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_Ip_address: 10.1.158.28
+      fqhn: fog02.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.28
+      fqhn: fog02.cluster.internal
+
+- name: fog03
+  bmc:
+    address: fog03-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog03-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:e4:32
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:e4:33
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.29
+      fqhn: fog03.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.29
+      fqhn: fog03.cluster.internal
+
+- name: fog04
+  bmc:
+    address: fog04-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog04-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:db:b2
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:db:b3
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.30
+      fqhn: fog04.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.30
+      fqhn: fog04.cluster.internal
+
+- name: fog05
+  bmc:
+    address: fog05-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog05-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 6c:2b:59:c5:c4:2a
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 6c:2b:59:c5:c4:2b
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.31
+      fqhn: fog05.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.31
+      fqhn: fog05.cluster.internal
+
+- name: fog06
+  bmc:
+    address: fog06-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog06-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:e0:ca
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:e0:cb
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.32
+      fqhn: fog06.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.32
+      fqhn: fog06.cluster.internal
+
+- name: fog07
+  bmc:
+    address: fog07-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog07-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:f1:22
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:f1:23
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.33
+      fqhn: fog07.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.33
+      fqhn: fog07.cluster.internal
+
+- name: fog08
+  bmc:
+    address: fog08-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog08-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:e2:4a
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:e2:4b
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.34
+      fqhn: fog08.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.34
+      fqhn: fog08.cluster.internal
+
+- name: fog09
+  bmc:
+    address: fog09-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog09-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:e4:22
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:e4:23
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.35
+      fqhn: fog09.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.35
+      fqhn: fog09.cluster.internal
+
+- name: fog10
+  bmc:
+    address: fog10-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog10-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 6c:2b:59:c5:c4:82
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 6c:2b:59:c5:c4:83
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.36
+      fqhn: fog10.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.36
+      fqhn: fog10.cluster.internal
+
+- name: fog11
+  bmc:
+    address: fog11-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog11-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:de:52
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:de:53
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.37
+      fqhn: fog11.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.37
+      fqhn: fog11.cluster.internal
+
+- name: fog12
+  bmc:
+    address: fog12-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog12-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:d5:ef:12
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:d5:ef:13
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.38
+      fqhn: fog12.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.38
+      fqhn: fog12.cluster.internal
+
+- name: fog13
+  bmc:
+    address: fog13-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog13-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e0:ff:b2
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e0:ff:b3
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.39
+      fqhn: fog13.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.39
+      fqhn: fog13.cluster.internal
+
+- name: fog14
+  bmc:
+    address: fog14-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog14-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:00:aa
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:00:ab
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.40
+      fqhn: fog14.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.40
+      fqhn: fog14.cluster.internal
+
+- name: fog15
+  bmc:
+    address: fog15-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog15-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:ea
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:eb
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.41
+      fqhn: fog15.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.41
+      fqhn: fog15.cluster.internal
+
+
+- name: fog16
+  bmc:
+    address: fog16-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog16-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:ca
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:cb
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.42
+      fqhn: fog16.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.42
+      fqhn: fog16.cluster.internal
+
+- name: fog17
+  bmc:
+    address: fog17-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog17-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:ba
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:bb
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.43
+      fqhn: fog17.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.43
+      fqhn: fog17.cluster.internal
+
+- name: fog18
+  bmc:
+    address: fog18-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog18-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:d2
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:d3
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.44
+      fqhn: fog18.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.44
+      fqhn: fog18.cluster.internal
+
+- name: fog19
+  bmc:
+    address: fog19-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog19-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:52
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:53
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.45
+      fqhn: fog19.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.45
+      fqhn: fog19.cluster.internal
+
+- name: fog20
+  bmc:
+    address: fog20-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog20-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:c2
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:c3
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.46
+      fqhn: fog20.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.46
+      fqhn: fog20.cluster.internal
+
+- name: fog21
+  bmc:
+    address: fog21-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog21-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:4a
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:4b
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.47
+      fqhn: fog21.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.47
+      fqhn: fog21.cluster.internal
+
+- name: fog22
+  bmc:
+    address: fog22-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog22-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:00:e2
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:00:e3
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.48
+      fqhn: fog22.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.48
+      fqhn: fog22.cluster.internal
+
+- name: fog23
+  bmc:
+    address: fog23-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog23-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e0:e7:72
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e0:e7:73
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.49
+      fqhn: fog23.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.49
+      fqhn: fog23.cluster.internal
+
+- name: fog24
+  bmc:
+    address: fog24-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog24-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  root_device_name: /dev/sda
+  nics:
+    nic1:
+      id: 1
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:6a
+    nic2:
+      id: 2
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:6b
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.50
+      fqhn: fog24.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.50
+      fqhn: fog24.cluster.internal

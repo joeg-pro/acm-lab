@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Pre-reqs:
+#
+# - OCP 4 pull secret in $HOME/.secrets/ocp4-install-pull-secret.txt
+
+version=${1:-latest-4.6}
+dest_dir=${2:-./bin}
+
+me=$(basename $0)
+dest_dir=$(readlink -f $dest_dir)
+
+cmd="openshift-baremetal-install"
+pullsecret_file=$HOME/.secrets/ocp4-install-pull-secret.txt
+
+extract_dir=$(mktemp -td $me.XXXXXXXXXX)
+cd $extract_dir
+
+mirror_site="https://mirror.openshift.com/pub/openshift-v4"
+
+release_image=$(curl -s $mirror_site/clients/ocp/$version/release.txt |
+                grep 'Pull From: quay.io' | awk -F ' ' '{print $3}')
+curl -s $mirror_site/clients/ocp/$version/openshift-client-linux.tar.gz | tar zxf - oc
+
+# If we're using a floating version tag, indicate what actual version we have.
+
+if [[ $version == latest-* || $version == stable-* ]]; then
+   actual_version=$(KUBECONFIG=/dev/null ./oc version -o json | jq -r ".releaseClientVersion")
+   echo "Using version: $actual_version"
+else
+   actual_version=$version
+fi
+
+mkdir -p "$dest_dir"
+cp -p oc "$dest_dir/oc-$actual_version"
+rm -f "$dest_dir/oc"
+ln -s oc-$actual_version "$dest_dir/oc"
+
+$dest_dir/oc adm release extract --registry-config "$pullsecret_file" --command="$cmd" \
+   --to "$extract_dir" "$release_image"
+cp $cmd "$dest_dir/$cmd-$actual_version"
+rm -f $cmd
+rm -f "$dest_dir/$cmd"
+ln -s $cmd-$actual_version "$dest_dir/$cmd"
+
+cd /
+rm -rf "$extract_dir"
+

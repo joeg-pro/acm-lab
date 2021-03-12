@@ -1,0 +1,165 @@
+#!/bin/bash
+
+# Emits BareMetalHost manifests or install-config hosts fragments
+# for selected bare metal machines using data in the "database" yaml.
+
+#--- Args ---
+
+# -b Generate BareMetalHost (and related Secret) manifests rather than
+#    the default behavior of generating install-config.yaml fragments.
+
+me=$(basename $0)
+my_dir=$(dirname $(readlink -f $0))
+
+
+opt_flags="b"
+
+emit_bmh=0
+while getopts "$opt_flags" OPTION; do
+   case "$OPTION" in
+      b) emit_bmh=1
+         ;;
+      ?) exit 1
+         ;;
+   esac
+done
+shift "$(($OPTIND -1))"
+
+machine_names="$@"
+
+function extract {
+   echo "$1" | jq -rc "$2"
+}
+
+function extract_raw {
+   echo "$1" | jq -r "$2"
+}
+
+function emit_bmh_manifests {
+
+if [[ $entry_number -gt 1 ]]; then
+   echo "---"
+fi
+cat << E-O-D
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: $bmh_fqhn
+  namespace: openshift-machine-api
+spec:
+  bmc:
+    address: $bmh_bmc_address
+    disableCertificateVerification: true
+    credentialsName: $bmh_creds_secret_name
+  bootMACAddress: $bmh_boot_mac_address
+  online: false
+  hardwareProfile: unknown
+  rootDeviceHints:
+    deviceName: $bmh_root_device_name
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: $bmh_creds_secret_name
+  namespace: openshift-machine-api
+data:
+  username: $bmh_username
+  password: $bmh_password
+E-O-D
+}
+
+
+function emit_install_config_fragment {
+
+if [[ $entry_number -eq 1 ]]; then
+   echo "platform:"
+   echo "  baremetal:"
+   echo "    hosts:"
+else
+   echo ""
+fi
+if [[ $entry_number -le 3 ]]; then
+   role="master"
+   hw_profile="default"
+else
+   role="worker"
+   hw_profile="unknown"
+fi
+cat << E-O-D
+    - name: $bmh_fqhn
+      role: $role
+      bmc:
+        address: $bmh_bmc_address
+        disableCertificateVerification: true
+        username: $bmc_username
+        password: $bmc_password
+      bootMACAddress: $bmh_boot_mac_address
+      hardwareProfile: $hw_profile 
+      rootDeviceHints:
+        deviceName: $bmh_root_device_name
+E-O-D
+}
+
+first_one=1
+entry_number=0
+for machine_name in $machine_names; do
+   entry_number=$((entry_number+1))
+
+   # Grab the machine's entry from the "database".
+   m_data=$($my_dir/get-machine-entry $machine_name)
+
+   # Get/form subsitution data for YAML below, in top-to-bottom order.
+
+   # Get fully-qualified host name associated with NIC 2 (data NIC),
+   # assuming the BM Slot is using the private-data-network configuration.
+   # That will be the name of the BMH (and eventually the clsuter node).
+
+   nw_data=$(extract  "$m_data" ".cluster_internal_networking.nic2")
+   bmh_fqhn=$(extract "$nw_data" ".fqhn")
+   # echo "bmh_fqhn: $bmh_fqhn"
+
+   # Get BMC info for machine and form redfish URL.
+
+   bmc_data=$(extract "$m_data" ".bmc")
+   redfish_url_stuff=$(extract "$bmc_data" ".redfish")
+   bmh_bmc_address="redfish://$redfish_url_stuff"
+   # echo "bmh_bmc_address: $bmh_bmc_address"
+
+   bmh_creds_secret_name="$bmh_fqhn-bmc-secret"
+   # echo "bmh_creds_secret_name: $bmh_creds_secret_name"
+
+   # Get MAC address for NIC 1 since that what we'll PXE boot from.
+
+   bmh_boot_mac_address=$(extract "$m_data" ".nics.nic1.mac_address")
+   # echo "bmh_boot_mac_address: $bmh_boot_mac_address"
+
+   # Get root device name to use as hint
+
+   bmh_root_device_name=$(extract "$m_data" ".root_device_name")
+   # echo "bmh_root_device_name: $bmh_root_device_name"
+
+   # Get BMC username and password and base-64 encode them.
+
+   bmc_username=$(extract "$m_data" ".bmc.username")
+   bmc_password=$(extract "$m_data" ".bmc.password")
+   # echo "bmc_username: $bmc_username"
+   # echo "bmc_password: $bmc_password"
+
+   bmh_username=$(echo -n $bmc_username | base64)
+   bmh_password=$(echo -n $bmc_password | base64)
+
+   # echo $bmh_username
+   # echo $bmh_password
+
+   # Emit the YAML we've been asked to generate.
+
+   if [[ $emit_bmh -eq 1 ]]; then
+      emit_bmh_manifests
+   else
+      emit_install_config_fragment
+   fi
+done
+
+exit 0
+

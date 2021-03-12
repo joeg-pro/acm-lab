@@ -1,0 +1,10 @@
+#!/bin/bash
+
+our_intf_on_158="ens160"
+
+sudo nmcli con mod $our_intf_on_158 ipv4.routes ""
+
+sudo nmcli con reload $our_intf_on_158
+sudo nmcli dev reapply $our_intf_on_158
+
+echo "All static routes on $our_intf_on_158 have been rmoved."

@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# Emits MachineConfig manifests that can be used to apply a static route
+# for Slot Y's provisioinng network to an OCP cluster living in Slot X.
+#
+# Requires that the Slot X cluster be directly connected to the same network
+# that Slot Y's gateway lives on (else the ip route add fails).  So this
+# doesn't work in setups wheter the two clusters are entirely on completely
+# independnt networks.  Alternative approach is to apply routing in the
+# gateway for Slot X.
+
+
+#--- Args ---
+
+# $1 = Slot number
+
+me=$(basename $0)
+my_dir=$(dirname $(readlink -f $0))
+
+opt_flags="mvl"
+
+env_type="metal"
+
+while getopts "$opt_flags" OPTION; do
+   case "$OPTION" in
+      m) env_type="metal"
+         ;;
+      v) env_type="vsphere"
+         ;;
+      l) env_type="libvirt"
+         ;;
+      ?) exit 1
+         ;;
+   esac
+done
+shift "$(($OPTIND -1))"
+
+slot_nr="$1"
+gateway_ip="$2"
+
+if [[ -z "$slot_nr" ]]; then
+   >&2 echo "Required slot number argument missing."
+   >&2 echo "Syntax: $me <slot_nr> [<gateway_ip>]"
+   exit 5
+fi
+
+function make_encoded_script {
+
+local intf="$1"
+local subnet="$2"
+local gateway="$3"
+
+tmp_file=$(mktemp)
+
+cat > $tmp_file << E-O-D
+#!/bin/bash
+
+IFACE="\$1"
+STATUS="\$2"
+
+if [[ "\$IFACE" == "$intf" && "\$STATUS" == "up" ]]; then
+   ip route add "$subnet" via "$gateway"
+fi
+E-O-D
+
+base64 -w0 $tmp_file
+rm -f $tmp_file
+
+}
+
+entry_number=1
+
+function emit_mc_manifest {
+
+if [[ $entry_number -gt 1 ]]; then
+   echo "---"
+fi
+
+local role="$1"
+local encoded_script="$2"
+
+cat << E-O-D
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: $role
+  name: 999-$role-provisioning-route
+  namespace: openshift-machine-config-operator
+spec:
+  config:
+    ignition:
+      version: 3.1.0
+    passwd: {}
+    storage:
+      files:
+      - filesystem: root
+        path: "/etc/NetworkManager/dispatcher.d/999-add-provisioning-route"
+        overwrite: true
+        mode: 0755
+        contents:
+          source: data:text/plain;charset=utf-8;base64,$encoded_script
+          verification: {}
+  fips: false
+  kernelArguments: null
+  kernelType: ""
+  osImageURL: ""
+E-O-D
+
+entry_number=$((entry_number+1))
+}
+
+
+if [[ "$env_type" == "metal" ]]; then
+   intf="eno2"
+elif [[ "$env_type" == "vsphere" ]]; then
+   intf="ens192"
+else
+   >&2 echo "Environment type \"$env_type\" is not supported yet."
+   exit 3
+fi
+
+if [[ -z "$gateway_ip" ]]; then
+   last_octet=$((100 + $slot_nr))
+   gateway_ip="10.1.158.$last_octet"
+fi
+
+subnet="172.22.$slot_nr.0/24"
+
+encoded_script=$(make_encoded_script $intf $subnet $gateway_ip)
+# emit_mc_manifest "master" "$encoded_script"
+emit_mc_manifest "worker" "$encoded_script"
+
+
+exit 0
+
