@@ -1,0 +1,14 @@
+
+# === Python ===
+# #Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === Terraform ===
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+
