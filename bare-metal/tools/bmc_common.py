@@ -9,53 +9,16 @@ import sys
 import time
 import urllib3
 
-
-# For machine info db stuff:
-
-import os
-import yaml
+from fog_common import *
 
 urllib3.disable_warnings()
 
-dbg_volume_level = 0
-
-def set_dbg_volume_level(lvl):
-   global dbg_volume_level
-   dbg_volume_level = lvl
-
-def eprint(*args, **kwargs):
-   print(*args, file=sys.stderr, **kwargs)
-
-def emsg(msg, *args):
-   eprint("Error: " + msg, *args)
-
-def wmsg(msg, *args):
-   eprint("Warning: " + msg, *args)
-
-def nmsg(msg, *args):
-   eprint("Note: " + msg, *args)
-
-def blurt(*args, **kwargs):
-   print(*args, **kwargs)
-
-def die(msg, *args):
-   eprint("Error: " + msg, *args)
-   eprint("Aborting.")
-   exit(2)
-
-def dbg(msg, *args, level=1):
-   if level <= dbg_volume_level:
-      eprint("DBG: " + msg, *args)
-
-def remove_trailing(s, ending):
-   return s[:-len(ending)] if s.endswith(ending) else s
 
 def now():
    return time.time()
 
-def _json_dumps(a_dict):
-   return json.dumps(a_dict, indent=3, sort_keys=True)
-
+def _get_resource_id(res):
+   return res["@odata.id"]
 
 class BMCError(Exception):
    pass
@@ -66,6 +29,7 @@ class BMCRequestError(BMCError):
 
       if msg is not None:
          self.message   = msg
+         self.status    = None
 
       elif resp is not None:
          self.response  = resp
@@ -98,7 +62,10 @@ class BMCRequestError(BMCError):
             self.message = "An unknown error occurred."
 
    def __str__(self):
-      return "Status %d: %s" % (self.status, self.message)
+      if self.status is None:
+         return self.message
+      else:
+         return "Status %d: %s" % (self.status, self.message)
 
 def _resp_json(resp):
    return dict() if resp.text == "" else resp.json()
@@ -138,10 +105,17 @@ class BMCConnection(object):
 
    def _cache_resource(self, key, resource):
 
-      msg_start = "Adding to" if key not in self.resources else "Updating in"
+      msg_start = "Added to" if key not in self.resources else "Updated in"
       dbg("%s resource cache: %s" % (msg_start, key), level=5)
       dbg("Resource contents: \n %s" % json.dumps(resource, indent=3), level=6)
       self.resources[key] = (now(), resource)
+
+   def _uncache_resource(self, key):
+      try:
+         del self.resources[key]
+         dbg("Removed from resource cache: %s" % key, level=5)
+      except KeyError:
+         pass
 
    def _get_resource(self, key):
       if key in self.resources:
@@ -152,6 +126,16 @@ class BMCConnection(object):
          self._cache_resource(key, res)
          return res
 
+   def _update_resource(self, key, update_body):
+      res = self.do_patch(key, update_body)
+
+      # We could be fancier and merge the updates into the resource, but there
+      # isn't currently a good use case that justifies the fanciness.  So instead
+      # we just make sure we're not caching now-stale stuff.
+      self._uncache_resource(key)
+
+      return res
+
    def _get_collection(self, key, expand=0):
       query_parm = None
       if expand != 0:
@@ -161,7 +145,7 @@ class BMCConnection(object):
 
    def _check_for_error(self, resp):
 
-      dbg("Response status: %d" % resp.status_code)
+      # dbg("Response status: %d" % resp.status_code)
 
       # Note:  At least for Dell iDRAC, the HTTP status code 200 isn't reliable as it can
       # report status 200 for some error conditions.  So treat 2XX other than 200 as Ok
@@ -227,8 +211,11 @@ class BMCConnection(object):
          resp = requests.post(uri, verify=self.verify, auth=creds, json=body, headers=hdrs)
 
       elif method == "PATCH":
-         dbg("PATCH not implemented yet.")
-         pass
+         dbg("PATCHing URI: %s" % uri, level=3)
+         if body is not None:
+            dbg("   with JSON body:\n %s" % json.dumps(body, sort_keys=True), level=3)
+         resp = requests.patch(uri, verify=self.verify, auth=creds, json=body, headers=hdrs)
+
       return (self._check_for_error(resp))
 
    def do_get(self, resource_path, unauth=False, query_parms=None):
@@ -238,6 +225,9 @@ class BMCConnection(object):
 
    def do_post(self, resource_path, body=None):
       return _resp_json(self.redfish_request("POST", resource_path, body=body))
+
+   def do_patch(self, resource_path, body=None):
+      return _resp_json(self.redfish_request("PATCH", resource_path, body=body))
 
    def _get_sys_collection_path(self):
       # Probably: /redfish/v1/Systems/
@@ -298,7 +288,7 @@ class BMCConnection(object):
       #         (2) If find_first_empty_slit is true, ad there is an empty account
       #             slot it is returned.  Otherwise None is returned.
       #
-      # Yep, this is a strange  (maybe gross)  combination of functions and maybe makes this
+      # Yep, this is a strange (maybe gross) combination of functions and maybe makes this
       # confusing and hard to maintain.  Blame this on perhaps an ill-advised attempt to have
       # common code.
 
@@ -325,7 +315,7 @@ class BMCConnection(object):
          user_name = acct_res["UserName"]
          if user_name != "":
             dbg("Found account for user \"%s\"" % user_name, level=dbg_msg_lvl)
-            dbg("Account details:\n%s" % _json_dumps(acct_res), level=dbg_msg_lvl_verbose)
+            dbg("Account details:\n%s" % json_dumps(acct_res), level=dbg_msg_lvl_verbose)
             accounts[user_name] = acct_res
             if user_name == want_user_name:
                # We found the user that was really wanted. Return just it.
@@ -359,7 +349,7 @@ class BMCConnection(object):
       dbg("Getting BMC account for user \"%s\"" % user_name, level=1)
       acct_res = self._get_accounts(want_user_name=user_name)
       if acct_res is not None:
-         dbg("%s" % _json_dumps(acct_res), level=3)
+         dbg("%s" % json_dumps(acct_res), level=3)
          return acct_res
       else:
          dbg("BMC account for user \"%s\" not found." % user_name, level=1)
@@ -367,13 +357,16 @@ class BMCConnection(object):
 
    def add_account(self, user_name):
 
-      # Make sure the account doesn't already exist.
+      # Look through accounts to find an available slot, and at the same time
+      # verify the user doesn't already exist.  THis returns either an empty account
+      # resource or the resource for the user we were asked to add.
+
       acct_res = self._get_accounts(want_user_name=user_name, find_first_empty_slot=True)
 
       # If we get None back, it means the account didn't already exist (good), but
       # we also have no empty slot to add a new one.
 
-      if acct_res is not None:
+      if acct_res is None:
          raise BMCRequestError(self, msg="No room available for new account \"%s\"." % user_name)
 
       res_user_name = acct_res["UserName"]
@@ -381,7 +374,22 @@ class BMCConnection(object):
          raise BMCRequestError(self, msg="Account \"%s\" already exists." % user_name)
 
       dbg("Will create new account using slot at id %d" % acct_res["id"])
+      ### INCOMPLETE ###
 
+   def set_account_password(self, user_name, password):
+      ''''
+      Set the password for the specified BMC user (account).
+      '''
+
+      acct_res = self.get_account(user_name)
+      if acct_res is None:
+         raise BMCRequestError(self, msg="Account \"%s\" doesn't exist." % user_name)
+
+      res_id = _get_resource_id(acct_res)
+      update_body = dict()
+      update_body["Password"] = password
+
+      self._update_resource(res_id, update_body)
 
    def get_power_state(self):
       ''''
@@ -445,14 +453,15 @@ class DellBMCConnection(BMCConnection):
 class FogBMCConnection(object):
 
    # Notes:
-   # - This class contains a (Dell) BMC Connection object rather than subclasses
-   #   from it in case we have non-Dell hardware in the future and we want this
-   #   class to act as a fascade over all kinds.
+   #
+   # - This class contains an instance of a (Dell) BMC Connection object rather than
+   #   being a subclasses of it in case we have non-Dell hardware in the future and
+   #   we want this class to act as a fascade over all kinds.
 
-   def __init__(self, fog_name, username=None, password=None):
+   def __init__(self, fog_name, username=None, password=None, as_admin=False, as_default_user=False):
 
       self.machine_info = None
-      bmc_cfg = self._get_bmc_cfg(fog_name)
+      bmc_cfg = self._get_bmc_cfg(fog_name, as_admin=as_admin, as_default_user=as_default_user)
 
       self.host = bmc_cfg["address"]
       self.username = bmc_cfg["username"] if username is None else username
@@ -461,80 +470,25 @@ class FogBMCConnection(object):
 
       self.connection = DellBMCConnection(self.host, self.username, self.password)
 
+      # Because we're doing things by composition of rahter than subclassing from the
+      # BMCConnection class, we have to explicitly "export" the methods of the
+      # BMCConnection classs that we want to be part of our API.
+
       self.get_power_state  = self.connection.get_power_state
       self.system_power_on  = self.connection.system_power_on
       self.system_power_off = self.connection.system_power_off
 
-      self.get_all_accounts = self.connection.get_all_accounts
-      self.get_account      = self.connection.get_account
-      self.add_account      = self.connection.add_account
+      self.get_all_accounts     = self.connection.get_all_accounts
+      self.get_account          = self.connection.get_account
+      self.add_account          = self.connection.add_account
+      self.set_account_password = self.connection.set_account_password
 
-   def _load_machine_info_db(self):
-
-      if self.machine_info is not None:
-         return
-      # Get BMC address and creds from our machine info database (yaml files).
-
-      machine_db_yaml = os.getenv("FOG_MACHINE_INFO")
-      if machine_db_yaml is None:
-         die("Environment variable FOG_MACHINE_INFO is not set.")
-      machine_creds_yaml = os.getenv("FOG_MACHINE_CREDS")
-      if machine_creds_yaml is None:
-         die("Environment variable FOG_MACHINE_CREDS is not set.")
-
-      # Load DB and convert it into a dict indexed by machine name.
-
-      try:
-         with open(machine_db_yaml, "r") as stream:
-            machine_db = yaml.safe_load(stream)
-      except FileNotFoundError:
-         die("Machine info db file not found: %s" % machine_db_yaml)
-
-      try:
-         machine_info = {e["name"]: e for e in machine_db["machines"]}
-      except KeyError:
-         die("Machine info db not as expected (no machines list).")
-
-      # Load creds into and merge into the machine db entries.
-
-      try:
-         with open(machine_creds_yaml, "r") as stream:
-            creds_info = yaml.safe_load(stream)
-      except FileNotFoundError:
-         die("Machine creds db file not found: %s" % machine_creds_yaml)
-
-      global_creds = None
-      try:
-         global_creds = creds_info["global"]["bmc"]
-         global_username = global_creds["username"]
-         global_password = global_creds["password"]
-      except KeyError:
-         die("Machine creds db not as expected (global.bmc data missing/incomplete).")
-      # In Future, maybe we'll add per-machine cred overrides but none such for now.
-
-      # Merge the creds into each machine_info entry if none already there.
-
-      try:
-         for m_entry in machine_info.values():
-            bmc_info = m_entry["bmc"]
-            if "username" not in bmc_info:
-               bmc_info["username"] = global_username
-            if "password" not in bmc_info:
-               bmc_info["password"] = global_password
-
-      except KeyError:
-         die("Machine info db not as expected (bmc data missing/wrong).")
-
-      self.machine_info = machine_info
-
-   def _get_bmc_cfg(self, machine_name):
-
-      self._load_machine_info_db()
+   def _get_bmc_cfg(self, machine_name, as_admin=False, as_default_user=False):
 
       m_entry = None
       bmc_cfg = {}
       try:
-         m_entry = self.machine_info[machine_name]
+         m_entry = get_machine_entry(machine_name, as_admin=as_admin, as_default_user=as_default_user)
          bmc_info = m_entry["bmc"]
          bmc_cfg["address"]  = bmc_info["address"]
          bmc_cfg["username"] = bmc_info["username"]
