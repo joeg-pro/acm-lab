@@ -1,23 +1,30 @@
 #!/bin/bash
 
-# Emits BareMetalHost manifests or install-config hosts fragments
-# for selected bare metal machines using data in the "database" yaml.
+# Emits BareMetalHost manifests or install-config hosts fragments for the named
+# bare metal machines using data in the fog-machine-info "database" yaml.
 
 #--- Args ---
 
-# -b Generate BareMetalHost (and related Secret) manifests rather than
-#    the default behavior of generating install-config.yaml fragments.
+# -b Generate BareMetalHost (and related Secret) manifests rather than the default behavior
+#    of generating install-config.yaml platform/host fragments.
+#
+# -E Generate just the machine-related metadata entries, omit any context-setting stuff.
+#    (Currently applies only to generation of install-config stuff.)
 
 me=$(basename $0)
 my_dir=$(dirname $(readlink -f $0))
 
 
-opt_flags="b"
+opt_flags="bE"
 
 emit_bmh=0
+skip_context=0
+
 while getopts "$opt_flags" OPTION; do
    case "$OPTION" in
       b) emit_bmh=1
+         ;;
+      E) skip_context=1
          ;;
       ?) exit 1
          ;;
@@ -72,7 +79,7 @@ E-O-D
 
 function emit_install_config_fragment {
 
-if [[ $entry_number -eq 1 ]]; then
+if [[ $entry_number -eq 1 ]] && [[ $skip_context -eq 0 ]]; then
    echo "platform:"
    echo "  baremetal:"
    echo "    hosts:"

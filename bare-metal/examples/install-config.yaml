@@ -1,59 +1,23 @@
-# Template of an install-config.yaml for bare metal install in ACM Eng Lab.
+
+# This install-config.yaml is an exampleof a config for a slot numbered
+# <slot_nr> as set up by ACM bare-metal slot setup tools.
 #
-# <slot-nr>:
-#   Number (1-n) of the slot holding the cluster.  This appears in IP addresses
-#   of things on the slot's private provisioning and data networks as as to
-#   keep the addressing of each slot distinct.  This will permit us to have
-#   eg. a single hub with two or more bare-metal spoke clusters.
-#
-# <GAP_VM_IP>
-#    IP address of the slot's "GAP" VM running on VSphere that acts as the host
-#    of the OCP bootstrap node during provisioning, and as a network gateway for
-#    access to the slot's private network.  GAP = "Gateway and Provisioner".
-#
-# Addressing conventions:
-#
-# - Slot-specific priavte provisioning network: 172.22.<slot-nr>.0/24
-#
-# - Slot-specific private data network: 172.31.<slot-nr>.0/24
-#
-# - GAP VM is on 172.22.<slot-nr>.1 and 172.31.<slot-nr>.1
-#
-# - The .2 and .3 addresses of these networks are reserved for other gateways.
-#
-# - Alternatie (eg. bare-metal-hosted) provisoining host is on 172.22.<slot-nr>.4
-#   if sone of these is being used.
-#
-# - THe OCP boostrap machine is at 172.22.<slot-nr>.5 as specified in this
-#   install-config.yaml, and probably on 172.31.<slot-nr>.5 as well due to fixed
-#   DHCP config for the data network (in GAP VM).
-#
-# - Once installed, the OCP cluster will use address 172.31.<slot-nr>.6 for the 
-#   provisioning machinery when running in-cluster.
-#
-# - The OCP bootstrap VM, and in-cluster provisioning machinery, provide DHCP for
-#   the machines on the provisioning network with the address pool running from
-#   172.22.<slot-nr>.200 to .249.
-#
-# - The GAP VM provides DHCP on the private datat network.
-#
-# - The OCP cluster's API and Ingress vips are 172.31.<slot-nr>.10 and .11 as
-#   specified in this install-config.yaml.  Note that these addresses are hard
-#   coded into the GAP setup scripts (for port fowarding) so if you want to use
-#   other addreses, the firewall port forwarding will have to be changed as well.
+# Replace <slot_nr> with the actual slot number, and also replace the example
+# platform.baremetal.host entries with ones containing the actual addresses,
+# MAC addresses, userid/password etc. for each machine.
 
 apiVersion: v1
-baseDomain: dev99.red-chesterfield.com
+baseDomain: my-base-domain.red-chesterfield.com
 metadata:
-  name: my-bare-metal-cluster
+  name: my-cluster-name
 
 networking:
-  machineCIDR: 172.31.<slot-nr>.0/24
+  machineCIDR: 172.31.<slot_nr>.0/24
   networkType: OVNKubernetes
 
 compute:
 - name: worker
-  replicas: 3
+  replicas: 1
   platform:
     baremetal: {}
 controlPlane:
@@ -64,23 +28,73 @@ controlPlane:
 
 platform:
   baremetal:
-    apiVIP: 172.31.<slot-nr>.10
-    ingressVIP: 172.31.<slot-nr>.11
+    libvirtURI: qemu+ssh://provisioner@172.22.<slot_nr>.1/system
+    apiVIP: 172.31.<slot_nr>.10
+    ingressVIP: 172.31.<slot_nr>.11
     provisioningNetworkInterface: eno1
     provisioningDHCPExternal: false
-    libvirtURI: qemu+ssh://provisioner@<GAP-VM-IP>/system
+    provisioningNetworkCIDR: 172.22.<slot_nr>.0/24
+    provisioningDHCPRange: 172.22.<slot_nr>.200,172.22.<slot_nr>.249
+    bootstrapProvisioningIP: 172.22.<slot_nr>.5
+    clusterProvisioningIP: 172.22.<slot_nr>.6
+    provisioningHostIP: 172.22.<slot_nr>.6
     externalBridge: data
     provisioningBridge: provisioning
-    provisioningNetworkCIDR: 172.22.<slot-nr>.0/24
-    bootstrapProvisioningIP: 172.22.<slot-nr>.5
-    clusterProvisioningIP: 172.22.<slot-nr>.6
-    provisioningHostIP: 172.22.<slot-nr>.6
-    provisioningDHCPRange: 172.22.<slot-nr>.200,172.22.<slot-nr>.249
 
     hosts:
-      <List of Host entries as generated from Fog Machine Info>
+    - name: fog07.cluster.internal
+      role: master
+      bmc:
+        address: redfish://fog07.mgmt.acm-lab.redhat.com/redfish/v1/Systems/System.Embedded.1
+        disableCertificateVerification: true
+        username: "<BMC-Username>"
+        password: "<BMC-Passrod>"
+      bootMACAddress: ab:cd:ef:01:23:07
+      hardwareProfile: default 
+      rootDeviceHints:
+        deviceName: /dev/sda
 
-pullSecret: '<your-pull-secret>'
+    - name: fog08.cluster.internal
+      role: master
+      bmc:
+        address: redfish://fog08.mgmt.acm-lab.redhat.com/redfish/v1/Systems/System.Embedded.1
+        disableCertificateVerification: true
+        username: "<BMC-Username>"
+        password: "<BMC-Passrod>"
+      bootMACAddress: ab:cd:ef:01:23:08
+      hardwareProfile: default 
+      rootDeviceHints:
+        deviceName: /dev/sda
+
+    - name: fog09.cluster.internal
+      role: master
+      bmc:
+        address: redfish://fog09.mgmt.acm-lab.redhat.com/redfish/v1/Systems/System.Embedded.1
+        disableCertificateVerification: true
+        username: "<BMC-Username>"
+        password: "<BMC-Passrod>"
+      bootMACAddress: ab:cd:ef:01:23:09
+      hardwareProfile: default 
+      rootDeviceHints:
+        deviceName: /dev/sda
+
+    - name: fog10.cluster.internal
+      role: worker
+      bmc:
+        address: redfish://fog19.mgmt.acm-lab.redhat.com/redfish/v1/Systems/System.Embedded.1
+        disableCertificateVerification: true
+        username: "<BMC-Username>"
+        password: "<BMC-Passrod>"
+      bootMACAddress: ab:cd:ef:01:23:10
+      hardwareProfile: unknown 
+      rootDeviceHints:
+        deviceName: /dev/sda
+
+pullSecret: 'put your pull secret here'
+
+# The following SSH key is the public part of the ACM Test Env key.  Please use it as is to
+# allow common access to OCP nodes running in the bare metal lab to facilitate debugging when
+# needed. Contact lab admins to get the private part of this key.
+
 sshKey: |
-   <your-private-ssh-key>
-
+   ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5e9lBM2s5ek5JZUOYgFHnfD6XFpvBLkHnVC+vt1LFGBfY9xAABXh4g64dsE0bN8KFXc43zjUXiFKtArI1l8SivA32m6d6nqz9FMKmsVcREWLKYIYR8RFS5aTHfdhmTYG0gjy66z98T0Tam0In5nc81nVxYNnzcW4FwqiwXi2vhuMZk3OZLf5u28PF/BJYxEnPFcrc4OhibDKJfwjkwvU7YiXaF4eS5N3NK9GtXGddOO84EQCXk8ieif72JgmdwhPeCK6a8PgV2iCJF9YiTJYuG1gg/Os5U+nlKervZBBq54MF1wzXYX3WXKx9j0//8cw+EJZuGZifqx8n6wcIRqA4ONMDs+rw5qPC8gnamhZeuAbTsfhtyRGchYUAxaDeJhs9V9rPTpGt0wD4KzCzeheWWYmO90DepDTClwkPEZpex6g2Io6RP+zamuGI2iDpWfg7kMtoEk7EoXACJQHkhtmSGn/sENnjJQWyKsYtA5nV9gTxhf29PxxGLusGNbDOdLomVwsiGHJkajG2cqFXRSW+WLQbIpMcZjJZ6XFS0qoIzQYoKP2PiAuq0JElh/EaOrMkJ5IT8hZFsy3F46FxR2ShX4ICXef6LZTnCMTpup8VbG4hnlT26x5746BbfRcqw5A56Mwj+F4Wy4od6iFRhREYLU72qHPbPy2QPCLnTBnN1w== ACM Test Env Key

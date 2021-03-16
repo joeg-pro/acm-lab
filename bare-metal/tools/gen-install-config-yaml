@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# Emits an install-config.yaml template.
+
+#--- Args ---
+#
+# $1       = Slot number.
+# $2 to $4 = Names of fog machines to use as masters.
+# $5 to $N = Names of fog machines to use as workers.  Optional.
+
+me=$(basename $0)
+my_dir=$(dirname $(readlink -f $0))
+
+slot_nr="$1"
+shift 1
+machine_names=($@)
+
+machine_count=${#machine_names[@]}
+if [[  $machine_count -lt 3 ]]; then
+   >&2 echo "Syntax: $me <slot_nr> <fog_master_1> <fog_master_2> <fog_master_3> [<fog_worker_1> ...]"
+   exit 5
+fi
+
+master_count=3
+worker_count=$((machine_count - 3))
+
+# Emit top part of install-config, all boilerplate or varying only based on slot IP addresses.
+cat << E-O-D
+
+# This install-config.yaml is customized for use in ACM bare metal lab slot $slot_nr.
+# Assumes slot addressing as established by ACM bare-metal lab setup tools.
+
+apiVersion: v1
+baseDomain: my-base-domain.red-chesterfield.com
+metadata:
+  name: my-cluster-name
+
+networking:
+  machineCIDR: 172.31.$slot_nr.0/24
+  networkType: OVNKubernetes
+
+compute:
+- name: worker
+  replicas: $worker_count
+  platform:
+    baremetal: {}
+controlPlane:
+  name: master
+  replicas: 3
+  platform:
+    baremetal: {}
+
+platform:
+  baremetal:
+    libvirtURI: qemu+ssh://provisioner@172.22.$slot_nr.1/system
+    apiVIP: 172.31.$slot_nr.10
+    ingressVIP: 172.31.$slot_nr.11
+    provisioningNetworkInterface: eno1
+    provisioningDHCPExternal: false
+    provisioningNetworkCIDR: 172.22.$slot_nr.0/24
+    provisioningDHCPRange: 172.22.$slot_nr.200,172.22.$slot_nr.249
+    bootstrapProvisioningIP: 172.22.$slot_nr.5
+    clusterProvisioningIP: 172.22.$slot_nr.6
+    provisioningHostIP: 172.22.$slot_nr.6
+    externalBridge: data
+    provisioningBridge: provisioning
+
+    hosts:
+E-O-D
+
+# Emit the per-machine part.
+$my_dir/gen-machine-yaml -E ${machine_names[@]}
+
+
+# And now the bottom part, all boilerplate.
+cat << E-O-D
+
+pullSecret: 'put your pull secret here'
+
+# The following SSH key is the public part of the ACM Test Env key.  Please use it as is to
+# allow common access to OCP nodes running in the bare metal lab to facilitate debugging when
+# needed. Contact lab admins to get the private part of this key.
+
+sshKey: |
+   ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5e9lBM2s5ek5JZUOYgFHnfD6XFpvBLkHnVC+vt1LFGBfY9xAABXh4g64dsE0bN8KFXc43zjUXiFKtArI1l8SivA32m6d6nqz9FMKmsVcREWLKYIYR8RFS5aTHfdhmTYG0gjy66z98T0Tam0In5nc81nVxYNnzcW4FwqiwXi2vhuMZk3OZLf5u28PF/BJYxEnPFcrc4OhibDKJfwjkwvU7YiXaF4eS5N3NK9GtXGddOO84EQCXk8ieif72JgmdwhPeCK6a8PgV2iCJF9YiTJYuG1gg/Os5U+nlKervZBBq54MF1wzXYX3WXKx9j0//8cw+EJZuGZifqx8n6wcIRqA4ONMDs+rw5qPC8gnamhZeuAbTsfhtyRGchYUAxaDeJhs9V9rPTpGt0wD4KzCzeheWWYmO90DepDTClwkPEZpex6g2Io6RP+zamuGI2iDpWfg7kMtoEk7EoXACJQHkhtmSGn/sENnjJQWyKsYtA5nV9gTxhf29PxxGLusGNbDOdLomVwsiGHJkajG2cqFXRSW+WLQbIpMcZjJZ6XFS0qoIzQYoKP2PiAuq0JElh/EaOrMkJ5IT8hZFsy3F46FxR2ShX4ICXef6LZTnCMTpup8VbG4hnlT26x5746BbfRcqw5A56Mwj+F4Wy4od6iFRhREYLU72qHPbPy2QPCLnTBnN1w== ACM Test Env Key
+E-O-D
+
+exit 0
+
