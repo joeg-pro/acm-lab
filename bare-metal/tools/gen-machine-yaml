@@ -83,6 +83,8 @@ if [[ $entry_number -eq 1 ]] && [[ $skip_context -eq 0 ]]; then
    echo "platform:"
    echo "  baremetal:"
    echo "    hosts:"
+elif [[ $entry_number -gt 1 ]]; then
+   echo ""
 fi
 if [[ $entry_number -le 3 ]]; then
    role="master"
