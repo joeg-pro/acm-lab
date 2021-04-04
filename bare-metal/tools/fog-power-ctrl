@@ -24,7 +24,7 @@ try:
    else:
       action = "status"
 
-   bmc_conn = FogBMCConnection(sys.argv[1])
+   bmc_conn = LabBMCConnection(sys.argv[1])
 
    action = action.lower()
    if action in ["status", "state"]:

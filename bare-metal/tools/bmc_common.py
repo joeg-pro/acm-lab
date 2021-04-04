@@ -9,7 +9,7 @@ import sys
 import time
 import urllib3
 
-from fog_common import *
+from lab_common import *
 
 urllib3.disable_warnings()
 
@@ -19,6 +19,9 @@ def now():
 
 def _get_resource_id(res):
    return res["@odata.id"]
+
+def json_dumps(thing):
+   return json.dumps(thing, indent=3, sort_keys=True)
 
 class BMCError(Exception):
    pass
@@ -95,7 +98,7 @@ class BMCConnection(object):
       # collections/services we will use.
 
       self.svc_root_res = self.do_get(None, unauth=True)
-      dbg("Service root resource:\n%s" % json.dumps(self.svc_root_res, sort_keys=True, indent=3), level=9)
+      dbg("Service root resource:\n%s" % json_dumps(self.svc_root_res), level=9)
 
       # Cache of resources we've fetched.
       self.resources = dict()
@@ -105,21 +108,32 @@ class BMCConnection(object):
 
    def _cache_resource(self, key, resource):
 
+      dbg_msg_lvl = 8
+      dbg_msg_lvl_verbose = 9
+
       msg_start = "Added to" if key not in self.resources else "Updated in"
-      dbg("%s resource cache: %s" % (msg_start, key), level=5)
-      dbg("Resource contents: \n %s" % json.dumps(resource, indent=3), level=6)
+      dbg("%s resource cache: %s" % (msg_start, key), level=dbg_msg_lvl)
+      dbg("Resource contents: \n %s" % json_dumps(resource), level=dbg_msg_lvl_verbose)
       self.resources[key] = (now(), resource)
 
    def _uncache_resource(self, key):
+
+      dbg_msg_lvl = 8
+      dbg_msg_lvl_verbose = 9
+
       try:
          del self.resources[key]
-         dbg("Removed from resource cache: %s" % key, level=5)
+         dbg("Removed from resource cache: %s" % key, level=dbg_msg_lvl)
       except KeyError:
          pass
 
    def _get_resource(self, key):
+
+
+      dbg_msg_lvl = 8
+
       if key in self.resources:
-         dbg("Getting resource from cache: %s" % key, level=5)
+         dbg("Getting resource from cache: %s" % key, level=dbg_msg_lvl)
          return self.resources[key][1]
       else:
          res = self.do_get(key)
@@ -168,13 +182,12 @@ class BMCConnection(object):
       Issue an Redfish request and return the response.  JSON input/output assumed.
       """
 
+      dbg_msg_lvl = 6
+
       # Normalize inputs.
       method = method.upper()
       hdrs = headers if headers is not None else dict()
       auth = None if unauth else (self.username, self.password)
-
-      # Convert body to a JSON string.
-      # bdy  = json.dumps(body) if body is not None else None
 
       # Build request URL.  If a resource path is specified and starts with a slash
       # we consider it absolue (relative to the base URI).  Otherwise we treat it
@@ -201,19 +214,19 @@ class BMCConnection(object):
          qp = ""
          if query_parms is not None:
             qp = " (Query Parms: %s)" % query_parms
-         dbg("GETting URI: %s%s" % (uri, qp), level=4)
+         dbg("GETting URI: %s%s" % (uri, qp), level=dbg_msg_lvl)
          resp = requests.get(uri, params=query_parms, verify=self.verify, auth=creds)
 
       elif method == "POST":
-         dbg("POSTing to URI: %s" % uri, level=4)
+         dbg("POSTing to URI: %s" % uri, level=dbg_msg_lvl)
          if body is not None:
-            dbg("   with JSON body:\n %s" % json.dumps(body, sort_keys=True), level=4)
+            dbg("...with JSON body:\n %s" % json_dumps(body), level=dbg_msg_lvl)
          resp = requests.post(uri, verify=self.verify, auth=creds, json=body, headers=hdrs)
 
       elif method == "PATCH":
-         dbg("PATCHing URI: %s" % uri, level=3)
+         dbg("PATCHing URI: %s" % uri, level=dbg_msg_lvl)
          if body is not None:
-            dbg("   with JSON body:\n %s" % json.dumps(body, sort_keys=True), level=3)
+            dbg("...with JSON body:\n %s" % json_dumps(body), level=dbg_msg_lvl)
          resp = requests.patch(uri, verify=self.verify, auth=creds, json=body, headers=hdrs)
 
       return (self._check_for_error(resp))
@@ -273,11 +286,10 @@ class BMCConnection(object):
       res_path = self._get_this_system_id()
       return self._get_resource(res_path)
 
-   def _get_accounts(self, want_user_name=None, find_first_empty_slot=False):
+   def _get_accounts(self, want_user_name=None, find_empty_slot=False):
 
-      # NB: This internal function is a hybrid thing that returns either a dict of
-      # account resources ndexed by name or a single account resource depending on
-      # parameters:
+      # This internal function is a hybrid thing that returns either a dict of  account
+      # resources ndexed by name or a single account resource depending on  parameters:
       #
       # (1) If both want_user_name and find_first_empty_slot are None/Default,
       #     it returns an indexed dict of all account resources.
@@ -291,13 +303,23 @@ class BMCConnection(object):
       # Yep, this is a strange (maybe gross) combination of functions and maybe makes this
       # confusing and hard to maintain.  Blame this on perhaps an ill-advised attempt to have
       # common code.
+      #
+      # Notes:
+      #
+      # - It seems (at least on Dell), that the Accounts collection always has a fixed number
+      #   of slots (ids 1 to 16), with them being empty (UserName is an empty string) or in-use
+      #   for an  account (UserName not an empty string).  Further, it appears the entry at
+      #   id 1 is not used (at least not in the Web UI).
+      #
+      #   To avoid looking through all 16 entries every time, we assume that the slots will be
+      #   used in order, i.e. no empty ones between in-use ones, and thus consider we've hit
+      #   the last defined account when we encounter an empty slot.
 
-      used_as_internal_util= want_user_name is not None or find_first_empty_slot
-      dbg_msg_lvl         = 9 if used_as_internal_util else 1
-      dbg_msg_lvl_verbose = 9 if used_as_internal_util else 3
+      quit_when_empty_slot_found=False
 
-      quit_when_empty_slot_found = find_first_empty_slot and want_user_name is None
-      return_empty_slot = find_first_empty_slot
+      used_as_internal_util= want_user_name is not None or find_empty_slot
+      dbg_msg_lvl         = 5 if used_as_internal_util else 1
+      dbg_msg_lvl_verbose = 5 if used_as_internal_util else 3
 
       dbg("Getting all defined BMC accounts.", level=dbg_msg_lvl)
       col_path = self._get_acct_collection_path()
@@ -324,12 +346,13 @@ class BMCConnection(object):
             #
          else:
             id = int(acct_res["Id"])
-            if id > 1 and empty_slot is None:
-               # We found an empty slot.  Save it.
-               dbg("Found first empty account slot at id %d." % id, level=dbg_msg_lvl)
-               empty_slot = acct_res
+            if id > 1:
+               if empty_slot is None:
+                  # We found an empty slot.  Save it.
+                  dbg("Found first empty account slot at id %d." % id, level=dbg_msg_lvl)
+                  empty_slot = acct_res
                if quit_when_empty_slot_found:
-                  return empty_slot
+                  break
             #
          #
       #
@@ -337,7 +360,7 @@ class BMCConnection(object):
       if not used_as_internal_util:
          return accounts
 
-      if find_first_empty_slot:
+      if find_empty_slot:
          return empty_slot
       else:
          return None
@@ -346,6 +369,7 @@ class BMCConnection(object):
       return self._get_accounts()
 
    def get_account(self, user_name):
+
       dbg("Getting BMC account for user \"%s\"" % user_name, level=1)
       acct_res = self._get_accounts(want_user_name=user_name)
       if acct_res is not None:
@@ -355,13 +379,33 @@ class BMCConnection(object):
          dbg("BMC account for user \"%s\" not found." % user_name, level=1)
          return None
 
-   def add_account(self, user_name):
+   def _map_role(self, role):
+
+      role_mapping = {
+         "administrator": "Administrator",
+         "operator":      "Operator",
+         "readonly":      "ReadOnly",
+         "none":          "None"
+      }
+      mapped_role = role_mapping.get(role)
+      if mapped_role is None:
+         raise BMCRequestError(self, msg="Account role \"%s\" not recognized." % role)
+
+      return mapped_role
+
+   def create_account(self, user_name, password, role=None):
+      ''''
+      Creates the specified BMC account (user) with the specificed role.
+      '''
+
+      role = "none" if role is None else role
+      dbg("Creating BMC account for user \"%s\" as role %s." % (user_name, role), level=1)
 
       # Look through accounts to find an available slot, and at the same time
       # verify the user doesn't already exist.  THis returns either an empty account
       # resource or the resource for the user we were asked to add.
 
-      acct_res = self._get_accounts(want_user_name=user_name, find_first_empty_slot=True)
+      acct_res = self._get_accounts(want_user_name=user_name, find_empty_slot=True)
 
       # If we get None back, it means the account didn't already exist (good), but
       # we also have no empty slot to add a new one.
@@ -373,13 +417,70 @@ class BMCConnection(object):
       if res_user_name == user_name:
          raise BMCRequestError(self, msg="Account \"%s\" already exists." % user_name)
 
-      dbg("Will create new account using slot at id %d" % acct_res["id"])
-      ### INCOMPLETE ###
+      dbg("Will create new account using slot at id %s" % acct_res["Id"], level=2)
+
+      res_id = _get_resource_id(acct_res)
+
+      update_body = dict()
+
+      update_body["UserName"] = user_name
+      update_body["Password"] = password
+      update_body["Enabled"]  = True
+      update_body["RoleId"]   = self._map_role(role)
+
+      self._update_resource(res_id, update_body)
+
+   def delete_account(self, user_name):
+      ''''
+      Deletes the specied  BMC account (user).
+      '''
+
+      if user_name == "root":
+         raise BMCRequestError(self, msg="Refusing to delete account \"%s\" via automation." % user_name)
+
+      dbg("Deleting BMC account for user \"%s\".", level=1)
+
+      acct_res = self.get_account(user_name)
+      if acct_res is None:
+         raise BMCRequestError(self, msg="Account \"%s\" doesn't exist." % user_name)
+
+      res_id = _get_resource_id(acct_res)
+      update_body = dict()
+
+      # On Dell iDRAC 9, you need to do the "delete" by first disabling the account and
+      # then nulling-out the username, and you can't also null-out the password  Othwise,
+      # it complains with a Status 400 ("The specified value is not allowed to be configured
+      # if the user name or  password is blank.").
+
+      update_body["Enabled"]  = False
+      update_body["RoleId"]   = "None"
+      self._update_resource(res_id, update_body)
+
+      update_body.clear()
+      update_body["UserName"] = ""
+      # update_body["Password"] = ""
+      self._update_resource(res_id, update_body)
+
+   def set_account_role(self, user_name, role=None):
+      ''''
+      Sets the role for the specified BMC account (user).
+      '''
+
+      role = "none" if role is None else role
+      dbg("Setting BMC account for user \"%s\" to have role %s." % (user_name, role), level=1)
+
+      res_id = _get_resource_id(acct_res)
+      update_body = dict()
+      update_body["RoleId"] = self._map_role(role)
+
+      self._update_resource(res_id, update_body)
 
    def set_account_password(self, user_name, password):
       ''''
-      Set the password for the specified BMC user (account).
+      Set the password for the specified BMC account (user).
       '''
+
+      dbg("Setting BMC account password for user \"%s\".", level=1)
 
       acct_res = self.get_account(user_name)
       if acct_res is None:
@@ -450,7 +551,7 @@ class DellBMCConnection(BMCConnection):
       super().__init__(base_url, username, password)
 
 
-class FogBMCConnection(object):
+class LabBMCConnection(object):
 
    # Notes:
    #
@@ -458,10 +559,48 @@ class FogBMCConnection(object):
    #   being a subclasses of it in case we have non-Dell hardware in the future and
    #   we want this class to act as a fascade over all kinds.
 
-   def __init__(self, fog_name, username=None, password=None, as_admin=False, as_default_user=False):
+   @staticmethod
+   def add_bmc_login_argument_definitions(parser):
+
+      parser.add_argument("--username", "-u",  dest="login_username")
+      parser.add_argument("--password", "-p",  dest="login_password")
+      parser.add_argument("--use-default-creds", "-D",  dest="use_default_creds", action="store_true")
+      parser.add_argument("--as-admin", "-A",  dest="as_admin", action="store_true")
+      parser.add_argument("--as-root",  "-R",  dest="as_root", action="store_true")
+      parser.add_argument("--as-mgmt",  "-M",  dest="as_mgmt", action="store_true")
+
+   @staticmethod
+   def create_connection(machine_name, args, default_to_admin=False):
+
+      username = args.login_username
+      password = args.login_password
+      for_std_user = None
+      if args.use_default_creds:
+         for_std_user = "default"
+      elif args.as_root:
+         for_std_user = "root"
+      elif args.as_mgmt:
+         for_std_user = "mgmt"
+      elif args.as_admin or default_to_admin:
+         for_std_user = "admin"
+
+      if username is not None:
+         dbg("Creating connection to %s as specified user\" %s\"." % (machine_name, username), level=1)
+      elif for_std_user is not None:
+         dbg("Creating connection to %s as standard user \"%s\"." % (machine_name, for_std_user), level=1)
+      else:
+         dbg("Creating connection to %s using default standard user." % machine_name, level=1)
+
+      return LabBMCConnection(machine_name, username=username, password=password,
+                              for_std_user=for_std_user)
+
+   def __init__(self, machine_name, username=None, password=None, for_std_user=None):
+
+      if (username is not None) != (password is not None):
+         die("Both BMC login username and password are required if either is provided.")
 
       self.machine_info = None
-      bmc_cfg = self._get_bmc_cfg(fog_name, as_admin=as_admin, as_default_user=as_default_user)
+      bmc_cfg = self._get_bmc_cfg(machine_name, for_std_user=for_std_user)
 
       self.host = bmc_cfg["address"]
       self.username = bmc_cfg["username"] if username is None else username
@@ -480,15 +619,16 @@ class FogBMCConnection(object):
 
       self.get_all_accounts     = self.connection.get_all_accounts
       self.get_account          = self.connection.get_account
-      self.add_account          = self.connection.add_account
+      self.create_account       = self.connection.create_account
+      self.delete_account       = self.connection.delete_account
       self.set_account_password = self.connection.set_account_password
 
-   def _get_bmc_cfg(self, machine_name, as_admin=False, as_default_user=False):
+   def _get_bmc_cfg(self, machine_name, for_std_user=None):
 
       m_entry = None
       bmc_cfg = {}
       try:
-         m_entry = get_machine_entry(machine_name, as_admin=as_admin, as_default_user=as_default_user)
+         m_entry = get_machine_entry(machine_name, for_std_user=for_std_user)
          bmc_info = m_entry["bmc"]
          bmc_cfg["address"]  = bmc_info["address"]
          bmc_cfg["username"] = bmc_info["username"]

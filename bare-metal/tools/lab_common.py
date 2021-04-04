@@ -77,20 +77,29 @@ def split_at(the_str, the_delim, favor_right=True):
 
 machine_info = None
 
-def _load_machine_info_db(as_admin=False, as_default_user=False):
+def _load_machine_info_db(for_std_user=None):
 
    global machine_info
 
    if machine_info is not None:
       return
+
    # Get BMC address and creds from our machine info database (yaml files).
 
-   machine_db_yaml = os.getenv("FOG_MACHINE_INFO")
+   machine_db_yaml = os.getenv("ACM_LAB_MACHINE_INFO")
    if machine_db_yaml is None:
-      die("Environment variable FOG_MACHINE_INFO is not set.")
-   machine_creds_yaml = os.getenv("FOG_MACHINE_CREDS")
+      machine_db_yaml = os.getenv("FOG_MACHINE_INFO")
+   if machine_db_yaml is None:
+      die("Environment variable ACM_LAB_MACHINE_INFO is not set.")
+   machine_creds_yaml = os.getenv("ACM_LAB_MACHINE_CREDS")
    if machine_creds_yaml is None:
-      die("Environment variable FOG_MACHINE_CREDS is not set.")
+      machine_creds_yaml = os.getenv("FOG_MACHINE_CREDS")
+   if machine_creds_yaml is None:
+      die("Environment variable ACM_LAB_MACHINE_CREDS is not set.")
+
+   for_std_user = for_std_user if for_std_user is not None else "bmc"
+   if for_std_user not in ["bmc", "default", "root", "admin", "mgmt"]:
+      die("Requested standard user \"%s\"%s is not recognized." % for_std_user)
 
    # Load DB and convert it into a dict indexed by machine name.
 
@@ -113,18 +122,14 @@ def _load_machine_info_db(as_admin=False, as_default_user=False):
    except FileNotFoundError:
       die("Machine creds db file not found: %s" % machine_creds_yaml)
 
+   global_creds_entry = "bmc" if for_std_user == "bmc" else "bmc-%s" % for_std_user
    global_creds = None
    try:
-      if as_default_user:
-         global_creds = creds_info["global"]["bmc-default"]
-      elif as_admin:
-         global_creds = creds_info["global"]["bmc-admin"]
-      else:
-         global_creds = creds_info["global"]["bmc"]
+      global_creds = creds_info["global"][global_creds_entry]
       global_username = global_creds["username"]
       global_password = global_creds["password"]
    except KeyError:
-      die("Machine creds db not as expected (global.bmc data missing/incomplete).")
+      die("Machine creds db does not have global creds for standard user \"%s\"." % for_std_user)
    # In Future, maybe we'll add per-machine cred overrides but none such for now.
 
    # Merge the creds into each machine_info entry if none already there.
@@ -140,9 +145,9 @@ def _load_machine_info_db(as_admin=False, as_default_user=False):
    except KeyError:
       die("Machine info db not as expected (bmc data missing/wrong).")
 
-def get_machine_entry(machine_name, as_admin=False, as_default_user=False):
+def get_machine_entry(machine_name, for_std_user=None):
 
-   _load_machine_info_db(as_admin=as_admin, as_default_user=as_default_user)
+   _load_machine_info_db(for_std_user=for_std_user)
 
 
    # Although the machine name key in the database isn't a hostname, we often

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+me=$(basename "$0")
+me_resolved=$(readlink -f "$0")
+my_dir=$(dirname "$me_resolved")
+
+to_run="$my_dir/$me.py"
+
+modules_path_from_top="bare-metal/tools"
+
+start_cwd="$PWD"
+
+top_of_repo_dir="./.git"
+
+cd "$my_dir"
+while [[ ! -d "$top_of_repo_dir" ]] && [[ "$PWD" != "/" ]]; do
+   cd ..
+done
+
+if [[ ! -d "$top_of_repo_dir" ]]; then
+   >&2 echo "Error: Could not find top of git repo (maybe not a git repo?)"
+   exit 3
+fi
+
+top_of_repo="$PWD"
+cd "$start_cwd"
+
+modules_dir="$top_of_repo/$modules_path_from_top"
+
+export PYTHONPATH=$modules_dir
+# echo "PYTHONPATH=$PYTHONPATH"
+exec python3 "$to_run" "$@"

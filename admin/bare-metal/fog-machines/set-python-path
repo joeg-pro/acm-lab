@@ -1,0 +1,28 @@
+#!/bin/bash
+# Source me.
+
+me=$(basename "$BASH_SOURCE")
+my_dir=$(dirname $(readlink -f "$BASH_SOURCE"))
+
+modules_path_from_top="bare-metal/tools"
+
+start_cwd="$PWD"
+
+top_of_repo_dir="./.git"
+
+cd "$my_dir"
+while [[ ! -d "$top_of_repo_dir" ]] && [[ "$PWD" != "/" ]]; do
+   cd ..
+done
+
+if [[ ! -d "$top_of_repo_dir" ]]; then
+   >&2 echo "Error: Could not find top of git repo (maybe not a git repo?)"
+   exit 3
+fi
+
+top_of_repo="$PWD"
+cd "$start_cwd"
+
+modules_dir="$top_of_repo/$modules_path_from_top"
+echo "Setting Python path to: $modules_dir"
+export PYTHONPATH=$modules_dir

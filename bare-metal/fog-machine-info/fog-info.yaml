@@ -600,3 +600,38 @@ machines:
       for_nic_id: 2
       dhcp_ip_address: 172.31.0.50
       fqhn: fog24.cluster.internal
+
+- name: mist01
+  bmc:
+    address: mist01-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist01-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: mist02
+  bmc:
+    address: mist02-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist02-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: mist03
+  bmc:
+    address: mist03-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist03-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: mist04
+  bmc:
+    address: mist04-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist04-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: mist05
+  bmc:
+    address: mist05-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist05-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: vapor01
+  bmc:
+    address: vapor-01-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: vapor-01-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: vapor02
+  bmc:
+    address: vapor-02-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: vapor-02-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
