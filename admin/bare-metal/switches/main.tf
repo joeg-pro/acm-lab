@@ -89,6 +89,18 @@ module slot_07 {
   provisioning_vlan = 215
 }
 
+module slot_08 {
+  source = "./modules/slot-config"
+  data_vlan         = 216
+  provisioning_vlan = 217
+}
+
+module slot_09 {
+  source = "./modules/slot-config"
+  data_vlan         = 218
+  provisioning_vlan = 219
+}
+
 module unallocated {
   source = "./modules/slot-config"
 
@@ -143,14 +155,6 @@ module fog05_sw_conn {
 module fog06_sw_conn {
   source = "./modules/fog-sw-connections"
   machine_nr = 06
-  slot       = module.slot_00.slot
-}
-
-module fog24_sw_conn {
-  source = "./modules/fog-sw-connections"
-  providers = {junos = junos.sw2}
-
-  machine_nr = 24
   slot       = module.slot_00.slot
 }
 
@@ -228,6 +232,58 @@ module fog18_sw_conn {
   source = "./modules/fog-sw-connections"
   machine_nr = 18
   slot       = module.slot_04.slot
+}
+
+
+# -- Slot 06 ----------------------------------------
+
+module fog19_sw_conn {
+  source = "./modules/fog-sw-connections"
+  providers = {junos = junos.sw2}
+
+  machine_nr = 19
+  slot       = module.slot_06.slot
+}
+
+module fog20_sw_conn {
+  source = "./modules/fog-sw-connections"
+  providers = {junos = junos.sw2}
+
+  machine_nr = 20
+  slot       = module.slot_06.slot
+}
+
+
+module fog21_sw_conn {
+  source = "./modules/fog-sw-connections"
+  providers = {junos = junos.sw2}
+
+  machine_nr = 21
+  slot       = module.slot_06.slot
+}
+
+module fog22_sw_conn {
+  source = "./modules/fog-sw-connections"
+  providers = {junos = junos.sw2}
+
+  machine_nr = 22
+  slot       = module.slot_06.slot
+}
+
+module fog23_sw_conn {
+  source = "./modules/fog-sw-connections"
+  providers = {junos = junos.sw2}
+
+  machine_nr = 23
+  slot       = module.slot_06.slot
+}
+
+module fog24_sw_conn {
+  source = "./modules/fog-sw-connections"
+  providers = {junos = junos.sw2}
+
+  machine_nr = 24
+  slot       = module.slot_06.slot
 }
 
 # -- Unallocated ------------------------------------

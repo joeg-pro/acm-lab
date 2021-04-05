@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Currently only imports stuff from 1G Swtich #1.
+# Currently only imports stuff for fog-01 through fog-24.
 
-tf="terraform-new"
+# We need TF >= 0.14 at this alias.
+tf="terraform-14"
 
 $tf import module.fog01_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/0
 $tf import module.fog01_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/1
@@ -61,3 +62,24 @@ $tf import module.fog17_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/33
 
 $tf import module.fog18_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/34
 $tf import module.fog18_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/35
+
+#
+
+$tf import module.fog19_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/0
+$tf import module.fog19_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/1
+
+$tf import module.fog20_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/2
+$tf import module.fog20_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/3
+
+$tf import module.fog21_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/4
+$tf import module.fog21_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/5
+
+$tf import module.fog22_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/6
+$tf import module.fog22_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/7
+
+$tf import module.fog23_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/8
+$tf import module.fog23_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/9
+
+$tf import module.fog24_sw_conn.junos_interface_physical.nic1_sw_port ge-0/0/10
+$tf import module.fog24_sw_conn.junos_interface_physical.nic2_sw_port ge-0/0/11
+
