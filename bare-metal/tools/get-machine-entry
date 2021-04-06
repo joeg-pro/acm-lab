@@ -1,15 +1,34 @@
 #!/bin/bash
 
+me=$(basename "$0")
+
 # Provides machine config data for a specified machine.
 
 my_dir=$(dirname $(readlink -f $0))
-default_data_yaml="$my_dir/../fog-machine-data/fog-data.yaml"
-default_creds_yaml="$my_dir/fog-machine-creds.yaml"
+default_data_yaml="$my_dir/../fog-machine-info/fog-info.yaml"
 
-data_yaml="${FOG_MACHINE_INFO:-$default_data_yaml}"
-creds_yaml="${FOG_MACHINE_CREDS:-$default_creds_yaml}"
+# Try current env var names first
+data_yaml="${ACM_LAB_MACHINE_INFO}"
+creds_yaml="${ACM_LAB_MACHINE_CREDS}"
 
-tmp_file="./.tmp.json"
+# And then deprecated ones for caompaibility
+data_yaml="${data_yaml:-$FOG_MACHINE_INFO}"
+creds_yaml="${creds_yaml:-$FOG_MACHINE_CREDS}"
+
+# And then fall back to default
+data_yaml="${data_yaml:-$default_data_yaml}"
+
+# Complain if something is missing.
+if [[ ! -f "$data_yaml" ]]; then
+   >&2 echo "Error: Can not find machine-info yaml file."
+   exit 5
+fi
+if [[ ! -f "$creds_yaml" ]]; then
+   >&2 echo "Error: Can not find machine-creds yaml file."
+   exit 5
+fi
+
+tmp_file=$(mktemp -t "$me.XXXXXXXX")
 
 machine_name="$1"
 yq -c ".machines | .[] | select(.name==\"$machine_name\")" $data_yaml > $tmp_file
