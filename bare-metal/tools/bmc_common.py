@@ -82,9 +82,26 @@ class BMCConnection(object):
 
    def __init__(self, base_url, username, password):
 
+      dbg("Initializing BMCConnection object.", level=9)
+
       self.username = username
       self.password = password
       self.verify   = False
+
+      self.session_token  = None
+      self.session_res_id = None
+
+      self.last_response = None
+
+      # Debug message levels for various kinds of things.
+
+      self.dbg_msg_lvl_rf_requests = 6
+
+      # Cache of resources we've fetched.
+      self.resources = dict()
+
+      # Some resource ids we may discover/learn as we need them.
+      self.this_system_id          = None
 
       self.base_url = remove_trailing(base_url, "/")
 
@@ -98,15 +115,56 @@ class BMCConnection(object):
       # collections/services we will use.
 
       self.svc_root_res = self.do_get(None, unauth=True)
+      self._cache_resource(self.svc_root_res)
       dbg("Service root resource:\n%s" % json_dumps(self.svc_root_res), level=9)
 
-      # Cache of resources we've fetched.
-      self.resources = dict()
+      self._open_session()
 
-      # Some resource ids we may discover/learn as we need them.
-      self.this_system_id          = None
+   def __del__(self):
 
-   def _cache_resource(self, key, resource):
+      dbg("Destroying BMCConnection object.", level=9)
+      self._close_open_sessions()
+
+   def _open_session(self):
+
+      dbg_msg_lvl = self.dbg_msg_lvl_rf_requests
+
+      dbg("Opening new session to BMC.", level=dbg_msg_lvl)
+
+      sessions_coll_id = self._get_session_collection_path()
+
+      req_body = {"UserName": self.username, "Password": self.password}
+      session_res = self.do_post(sessions_coll_id, body=req_body, unauth=True)
+
+      # Per info on RedFish session authentication, we may or may not get a response body back
+      # from the POST, and even if we do, it won't contain the session token.  But the session id
+      # (which we need to save to close/DELETE the session) and the token are always provided
+      # in response headers.
+
+      resp_hdrs = self.last_response.headers
+      self.session_res_id = resp_hdrs["Location"]
+      self.session_token  = resp_hdrs["X-Auth-Token"]
+
+      dbg("Session open, session id: %s" % self.session_res_id, level=dbg_msg_lvl)
+      # dbg("Session token: %s"% self.session_token, level=dbg_msg_lvl)
+
+   def _close_open_sessions(self):
+
+      dbg_msg_level = self.dbg_msg_lvl_rf_requests
+
+      if self.session_res_id is not None:
+         dbg("Closing open BMC session %s." % self.session_res_id, level=dbg_msg_level)
+         try:
+            self.do_delete(self.session_res_id)
+         except BMCError:
+            dbg("BMC exception raised during open-session closing. Ignoring.", level=dbg_msg_level)
+
+   def _cache_resource(self, resource):
+
+      key = resource["@odata.id"]
+      self._cache_resource_at_key(key, resource)
+
+   def _cache_resource_at_key(self, key, resource):
 
       dbg_msg_lvl = 8
       dbg_msg_lvl_verbose = 9
@@ -129,7 +187,6 @@ class BMCConnection(object):
 
    def _get_resource(self, key):
 
-
       dbg_msg_lvl = 8
 
       if key in self.resources:
@@ -137,7 +194,7 @@ class BMCConnection(object):
          return self.resources[key][1]
       else:
          res = self.do_get(key)
-         self._cache_resource(key, res)
+         self._cache_resource(res)
          return res
 
    def _update_resource(self, key, update_body):
@@ -182,11 +239,11 @@ class BMCConnection(object):
       Issue an Redfish request and return the response.  JSON input/output assumed.
       """
 
-      dbg_msg_lvl = 6
+      dbg_msg_lvl = self.dbg_msg_lvl_rf_requests
 
       # Normalize inputs.
       method = method.upper()
-      hdrs = headers if headers is not None else dict()
+      hdrs = headers.copy() if headers is not None else dict()
       auth = None if unauth else (self.username, self.password)
 
       # Build request URL.  If a resource path is specified and starts with a slash
@@ -206,41 +263,70 @@ class BMCConnection(object):
 
       hdrs["accept"] = "application/json"
       if method in ["PUT", "PATCH", "POST"]:
-         hdrs["content-type"] = "application/json"
+         hdrs["content-type"] = "application/json;charset=utf-8"
 
-      creds = None if unauth else (self.username, self.password)
+      creds = None
+      if not unauth:
+         # Use session token is a session is estbalished, otherwise basic auth.
+         if self.session_token is not None:
+            hdrs["X-Auth-Token"] = self.session_token
+         else:
+            creds = (self.username, self.password)
+
+      # Mask passwords in debug msgs
+      display_body = body
+      if display_body is not None and get_dbg_volume_level() >= dbg_msg_lvl:
+         password_key = "Password"
+         if password_key in display_body:
+            display_body = body.copy()
+            password_len = len(display_body[password_key])
+            display_body[password_key] = "*" * password_len
 
       if method == "GET":
          qp = ""
          if query_parms is not None:
             qp = " (Query Parms: %s)" % query_parms
          dbg("GETting URI: %s%s" % (uri, qp), level=dbg_msg_lvl)
-         resp = requests.get(uri, params=query_parms, verify=self.verify, auth=creds)
+         resp = requests.get(uri, params=query_parms, verify=self.verify, auth=creds, headers=hdrs)
 
       elif method == "POST":
          dbg("POSTing to URI: %s" % uri, level=dbg_msg_lvl)
          if body is not None:
-            dbg("...with JSON body:\n %s" % json_dumps(body), level=dbg_msg_lvl)
-         resp = requests.post(uri, verify=self.verify, auth=creds, json=body, headers=hdrs)
+            dbg("...with JSON body:\n%s" % json_dumps(display_body), level=dbg_msg_lvl)
+         resp = requests.post(uri, json=body, verify=self.verify, auth=creds, headers=hdrs)
 
       elif method == "PATCH":
          dbg("PATCHing URI: %s" % uri, level=dbg_msg_lvl)
          if body is not None:
-            dbg("...with JSON body:\n %s" % json_dumps(body), level=dbg_msg_lvl)
-         resp = requests.patch(uri, verify=self.verify, auth=creds, json=body, headers=hdrs)
+            dbg("...with JSON body:\n%s" % json_dumps(display_body), level=dbg_msg_lvl)
+         resp = requests.patch(uri, json=body, verify=self.verify, auth=creds, headers=hdrs)
 
+      elif method == "DELETE":
+         dbg("DELETing URI: %s" % uri, level=dbg_msg_lvl)
+         resp = requests.delete(uri, verify=self.verify, auth=creds, headers=hdrs)
+
+      # Very few requests, perhaps only authenticating via session-auth, care about the response
+      # headers, so we return just the response body as our return value.  But for those very
+      # few special requests, we stor the entire response in self.last_response for code to
+      # do as it pleases.  This approach would not work if we supported multiple concurrent
+      # requests, but we're nowhere near that fancy.
+
+      self.last_response = resp
       return (self._check_for_error(resp))
 
    def do_get(self, resource_path, unauth=False, query_parms=None):
-
       resp = self.redfish_request("GET", resource_path, query_parms=query_parms, unauth=unauth)
       return _resp_json(resp)
 
-   def do_post(self, resource_path, body=None):
-      return _resp_json(self.redfish_request("POST", resource_path, body=body))
+   def do_post(self, resource_path, body=None, unauth=False):
+      return _resp_json(self.redfish_request("POST", resource_path, body=body, unauth=unauth))
 
    def do_patch(self, resource_path, body=None):
       return _resp_json(self.redfish_request("PATCH", resource_path, body=body))
+
+   def do_delete(self, resource_path, query_parms=None):
+      resp = self.redfish_request("DELETE", resource_path, query_parms=query_parms)
+      return _resp_json(resp)
 
    def _get_sys_collection_path(self):
       # Probably: /redfish/v1/Systems/
@@ -249,6 +335,29 @@ class BMCConnection(object):
    def _get_mgr_collection_path(self):
       # Probably: /redfish/v1/Managers
       return self.svc_root_res["Managers"]["@odata.id"]
+
+   def _get_session_svc_path(self):
+      # Probably: /redfish/va/SessionService
+      return self.svc_root_res["SessionService"]["@odata.id"]
+
+   def _get_session_collection_path(self):
+
+      # Probably: /redfish/v1/SessionService/Sessions
+
+      # Info on RedFish is inconsistent on how to best get the id of the Session collection.
+      # Some web references suggest there is a SessionCollection entry in the service root
+      # resource, but at least on iDRAC 9 there is none.  There is a Links/Sessions reference
+      # though.  Other info suggests that as of RedFish 1.6, the Session collection's id
+      # is always /redfish/v1/SessionsService/Sessions.
+
+      # Web post show the Sesion collection id is also a property of the SessionService resource
+      # (makes sense) but at least in Dell iDRAC 9, you can't do a get of the SessionService
+      # resource when unauthenticated.
+
+      # We'll sort of blend all of the above info into a stragey of assuing the session collect
+      # is identifyed as <session_service_id>/Sessions.
+
+      return self._get_session_svc_path() + "/Sessions"
 
    def _get_acct_svc_path(self):
       # Probably: /redfish/v1/AccountService
@@ -613,9 +722,12 @@ class LabBMCConnection(object):
       # BMCConnection class, we have to explicitly "export" the methods of the
       # BMCConnection classs that we want to be part of our API.
 
-      self.get_power_state  = self.connection.get_power_state
-      self.system_power_on  = self.connection.system_power_on
-      self.system_power_off = self.connection.system_power_off
+
+      self.get_system_resource  = self.connection.get_this_system_resource
+
+      self.get_power_state      = self.connection.get_power_state
+      self.system_power_on      = self.connection.system_power_on
+      self.system_power_off     = self.connection.system_power_off
 
       self.get_all_accounts     = self.connection.get_all_accounts
       self.get_account          = self.connection.get_account

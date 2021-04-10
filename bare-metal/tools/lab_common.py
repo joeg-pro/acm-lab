@@ -17,6 +17,9 @@ def set_dbg_volume_level(lvl):
    global dbg_volume_level
    dbg_volume_level = lvl
 
+def get_dbg_volume_level():
+   return dbg_volume_level
+
 def eprint(*args, **kwargs):
    print(*args, file=sys.stderr, **kwargs)
 
