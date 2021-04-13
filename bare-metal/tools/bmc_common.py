@@ -73,6 +73,36 @@ class BMCRequestError(BMCError):
 def _resp_json(resp):
    return dict() if resp.text == "" else resp.json()
 
+
+# All Redfish task states:
+#
+# New, Pending
+# Service
+# Starting, Running, Stopping, Completed
+# Cancelling, Cancelled
+# Exception, Interrupted, Interrupted
+# Suspended
+#
+# Ref: http://redfish.dmtf.org/schemas/DSP2046_2019.1.html  (Vers s2019.1)
+
+_task_states_waiting = ["New", "Pending"]
+_task_states_in_prog = ["Service", "Running", "Starting", "Stopping", "Cancelling"]
+_task_states_paused  = ["Suspended"]
+_task_states_final   = ["Completed", "Cancelled",  "Exception", "Interrupted", "Killed"]
+_task_state_normal_completion = ["Completed"]
+
+def task_is_waiting(task_res):
+   return task_res["TaskState"] in _task_states_waiting
+
+def task_has_ended(task_res):
+   return task_res["TaskState"] in _task_states_final
+
+def task_is_in_progress(task_res):
+   return task_res["TaskState"] in _task_states_in_prog
+
+def task_competed_normally(task_res):
+   return task_res["TaskState"] in _task_state_normal_completion
+
 class BMCConnection(object):
 
    # Note: We'll try to keep Dell-iDRAC specific sutff from creaping into this class
@@ -95,6 +125,7 @@ class BMCConnection(object):
 
       # Debug message levels for various kinds of things.
 
+      self.dbg_msg_lvl_api_summary = 1
       self.dbg_msg_lvl_rf_requests = 6
 
       # Cache of resources we've fetched.
@@ -159,60 +190,6 @@ class BMCConnection(object):
          except BMCError:
             dbg("BMC exception raised during open-session closing. Ignoring.", level=dbg_msg_level)
 
-   def _cache_resource(self, resource):
-
-      key = resource["@odata.id"]
-      self._cache_resource_at_key(key, resource)
-
-   def _cache_resource_at_key(self, key, resource):
-
-      dbg_msg_lvl = 8
-      dbg_msg_lvl_verbose = 9
-
-      msg_start = "Added to" if key not in self.resources else "Updated in"
-      dbg("%s resource cache: %s" % (msg_start, key), level=dbg_msg_lvl)
-      dbg("Resource contents: \n %s" % json_dumps(resource), level=dbg_msg_lvl_verbose)
-      self.resources[key] = (now(), resource)
-
-   def _uncache_resource(self, key):
-
-      dbg_msg_lvl = 8
-      dbg_msg_lvl_verbose = 9
-
-      try:
-         del self.resources[key]
-         dbg("Removed from resource cache: %s" % key, level=dbg_msg_lvl)
-      except KeyError:
-         pass
-
-   def _get_resource(self, key):
-
-      dbg_msg_lvl = 8
-
-      if key in self.resources:
-         dbg("Getting resource from cache: %s" % key, level=dbg_msg_lvl)
-         return self.resources[key][1]
-      else:
-         res = self.do_get(key)
-         self._cache_resource(res)
-         return res
-
-   def _update_resource(self, key, update_body):
-      res = self.do_patch(key, update_body)
-
-      # We could be fancier and merge the updates into the resource, but there
-      # isn't currently a good use case that justifies the fanciness.  So instead
-      # we just make sure we're not caching now-stale stuff.
-      self._uncache_resource(key)
-
-      return res
-
-   def _get_collection(self, key, expand=0):
-      query_parm = None
-      if expand != 0:
-         query_parm = {"$expand": ".($levels=%d)" % expand}
-      coll = self.do_get(key, query_parms=query_parm)
-      return coll
 
    def _check_for_error(self, resp):
 
@@ -305,11 +282,12 @@ class BMCConnection(object):
          dbg("DELETing URI: %s" % uri, level=dbg_msg_lvl)
          resp = requests.delete(uri, verify=self.verify, auth=creds, headers=hdrs)
 
-      # Very few requests, perhaps only authenticating via session-auth, care about the response
-      # headers, so we return just the response body as our return value.  But for those very
-      # few special requests, we stor the entire response in self.last_response for code to
-      # do as it pleases.  This approach would not work if we supported multiple concurrent
-      # requests, but we're nowhere near that fancy.
+      # Only a few requests (eg. authenticating via session-auth, creating things) care about
+      # the response headers, so we return just the response body as our return value.
+      # But for those that need thems, we stash the entire response in self.last_response
+      # for code to do as it pleases.  This approach would not work if we supported multiple
+      # concurrent requests on a connection, but it seems unlikely we'll want to do that
+      # (and not clear how, even if we wanted, given HTTP request/response orientation).
 
       self.last_response = resp
       return (self._check_for_error(resp))
@@ -327,6 +305,140 @@ class BMCConnection(object):
    def do_delete(self, resource_path, query_parms=None):
       resp = self.redfish_request("DELETE", resource_path, query_parms=query_parms)
       return _resp_json(resp)
+
+   # Cache management.
+
+   def _cache_resource(self, resource):
+
+      key = resource["@odata.id"]
+      self._cache_resource_at_key(key, resource)
+
+   def _cache_resource_at_key(self, key, resource):
+
+      dbg_msg_lvl = 8
+      dbg_msg_lvl_verbose = 9
+
+      msg_start = "Added to" if key not in self.resources else "Updated in"
+      dbg("%s resource cache: %s" % (msg_start, key), level=dbg_msg_lvl)
+      dbg("Resource contents: \n %s" % json_dumps(resource), level=dbg_msg_lvl_verbose)
+      self.resources[key] = (now(), resource)
+
+   def _uncache_resource(self, key):
+
+      dbg_msg_lvl = 8
+      dbg_msg_lvl_verbose = 9
+
+      try:
+         del self.resources[key]
+         dbg("Removed from resource cache: %s" % key, level=dbg_msg_lvl)
+      except KeyError:
+         pass
+
+   # Resource CRUD.
+
+   def _get_resource(self, res_id, cacheable=True):
+
+      dbg_msg_lvl = 8
+
+      if cacheable and res_id in self.resources:
+         dbg("Getting resource from cache: %s" % res_id, level=dbg_msg_lvl)
+         return self.resources[res_id][1]
+
+      res = self.do_get(res_id)
+      if cacheable:
+         self._cache_resource(res)
+      else:
+         # Don't leave a potentially stale copy cached.
+         self._uncache_resource(res_id)
+
+      return res
+
+   def _update_resource(self, res_id, update_body):
+
+      res = self.do_patch(res_id, update_body)
+
+      # We could be fancier and merge the updates into the resource, but there
+      # isn't currently a good use case that justifies the fanciness.  So instead
+      # we just make sure we're not caching now-stale stuff.
+      self._uncache_resource(res_id)
+
+      return res
+
+   def get_resource(self, res_id, cacheable=True):
+      """
+      Returns a reference identified by its id/path.  Will used cached value if permissted.
+      """
+      dbg("Getting resource %s" % res_id, level=self.dbg_msg_lvl_api_summary)
+      return self._get_resource(res_id, cacheable=cacheable)
+
+   # Task (Action/Job) management.
+
+   def _start_task(self, task_start_path, task_body):
+
+      resp_body = self.do_post(task_start_path, task_body)
+      resp_hdrs = self.last_response.headers
+
+      task_id = resp_hdrs["Location"]
+      return task_id
+
+   def _get_task(self, task_id):
+      return self._get_resource(task_id, cacheable=False)
+
+   def start_task(self, task_start_path, task_body):
+      dbg("Starting task %s." % task_start_path, level=self.dbg_msg_lvl_api_summary)
+      task_id = self._start_task(task_start_path, task_body)
+      dbg("Queued/in-progress task id: %s" % task_id)
+      return task_id
+
+   def get_task(self, task_id):
+      return self._get_task(task_id)
+
+   # Collection CRUD.
+
+   def _get_collection(self, coll_id, expand=0):
+      # Note: We don't cache the collection resource because we're not going to
+      # track any additions or removals from it, at least not yet.
+      query_parm = None
+      if expand != 0:
+         query_parm = {"$expand": ".($levels=%d)" % expand}
+      coll = self.do_get(coll_id, query_parms=query_parm)
+      return coll
+
+   def _get_collection_member_ids(self, coll_id):
+      coll = self._get_collection(coll_id)
+
+      try:
+         members = coll["Members"]
+      except KeyError:
+         raise BMCRequestError(self, msg="Not a collection: %s" % key)
+
+      return [m["@odata.id"] for m in members]
+
+   def _get_collection_members(self, coll_id):
+      member_ids = self._get_collection_member_ids(coll_id)
+      return [self._get_resource(res_id) for res_id in member_ids]
+
+   def get_collection_member_ids(self, coll_id):
+      """
+      Returns a list of  resource ids of  the members of the specified collection.
+      """
+      dbg("Getting ids of members of collection %s" % coll_id, level=self.dbg_msg_lvl_api_summary)
+      member_ids = self._get_collection_member_ids(coll_id)
+      cnt = len(member_ids)
+      dbg("Returning ids of the %d resources in collection %s" % (cnt, coll_id), level=self.dbg_msg_lvl_api_summary)
+      return member_ids
+
+   def get_collection_members(self, coll_id):
+      """
+      Returns a list of resources that are the members of the specified collection.
+      """
+      dbg("Getting members of collection %s" % coll_id, level=self.dbg_msg_lvl_api_summary)
+      member_resources = self._get_collection_members(coll_id)
+      cnt = len(member_resources)
+      dbg("Returning the %d resources in collection %s" % (cnt, coll_id), level=self.dbg_msg_lvl_api_summary)
+      return member_resources
+
+   # Provide ids/instances of some key collections/resources.
 
    def _get_sys_collection_path(self):
       # Probably: /redfish/v1/Systems/
@@ -376,7 +488,7 @@ class BMCConnection(object):
       if self.this_system_id is not None:
          return self.this_system_id
 
-      # Since the Redfish service we're connected to is that provided by MC (vs. a
+      # Since the Redfish service we're connected to is that provided by a BMC (vs. a
       # multi-system management facility), it stands to reaosn there should only be
       # one System resource.  So find it from the Systems collection.
 
@@ -391,9 +503,11 @@ class BMCConnection(object):
       dbg("Determined this system id: %s" % self.this_system_id, level=3)
       return self.this_system_id
 
-   def get_this_system_resource(self):
+   def get_this_system_resource(self, cacheable=True):
       res_path = self._get_this_system_id()
-      return self._get_resource(res_path)
+      return self._get_resource(res_path, cacheable=cacheable)
+
+   # Account management.
 
    def _get_accounts(self, want_user_name=None, find_empty_slot=False):
 
@@ -601,19 +715,21 @@ class BMCConnection(object):
 
       self._update_resource(res_id, update_body)
 
+   # Server power-state/reset management.
+
    def get_power_state(self):
       ''''
       Get power state from the Computer System resource for this system/BMC.
       '''
 
-      res = self.get_this_system_resource()
+      res = self.get_this_system_resource(cacheable=False)
       return res["PowerState"]
 
    def _do_system_reset_action(self, action_type):
 
       # GEt the URI path for the ComputerSystem.Reset action.
 
-      res = self.get_this_system_resource()
+      res = self.get_this_system_resource(cacheable=False)
       supported_actions = res["Actions"]
       try:
          action = supported_actions["#ComputerSystem.Reset"]
@@ -626,10 +742,12 @@ class BMCConnection(object):
          raise BMCRequestError(self, msg="Computer System doesn't support Reset action type %s" % action_type)
 
       dbg("Resetting system (type: %s)" % action_type, level=1)
-      dbg("SYstem Reset - Action Path: %s" % action_path, level=3)
+      dbg("Action Path: %s" % action_path, level=3)
 
       post_body = {"ResetType": action_type}
-      self.do_post(action_path, post_body)
+      resp_body = self.do_post(action_path, post_body)
+      # Note: Despite being an Action, it appears the reset actions are always synchronous,
+      # at least for Dell iDRAC.  Response status code is always 204 with no Location header.
 
       # TODO: Remove system resource from cache since we've changed it.
 
@@ -650,6 +768,7 @@ class BMCConnection(object):
          self._do_system_reset_action("ForceOff")
       else:
          nmsg("System was already powered OFF.")
+
 
 class DellBMCConnection(BMCConnection):
 
@@ -722,12 +841,18 @@ class LabBMCConnection(object):
       # BMCConnection class, we have to explicitly "export" the methods of the
       # BMCConnection classs that we want to be part of our API.
 
+      self.get_resource              = self.connection.get_resource
+      self.get_collection_member_ids = self.connection.get_collection_member_ids
+      self.get_collection_members    = self.connection.get_collection_members
+      self.get_system_resource       = self.connection.get_this_system_resource
 
-      self.get_system_resource  = self.connection.get_this_system_resource
+      self.start_task       = self.connection.start_task
+      self.get_task         = self.connection.get_task
 
-      self.get_power_state      = self.connection.get_power_state
-      self.system_power_on      = self.connection.system_power_on
-      self.system_power_off     = self.connection.system_power_off
+      self.get_power_state         = self.connection.get_power_state
+      self.get_system_power_state  = self.connection.get_power_state
+      self.system_power_on         = self.connection.system_power_on
+      self.system_power_off        = self.connection.system_power_off
 
       self.get_all_accounts     = self.connection.get_all_accounts
       self.get_account          = self.connection.get_account

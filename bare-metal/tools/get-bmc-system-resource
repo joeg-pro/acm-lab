@@ -1,6 +1,6 @@
 #!/bin/python3
 
-# Creates a n BMC account (user).
+# Displays the BMC's System resource representing the Server it manages.
 
 # Author: J. M. Gdaniec, Apr 2021
 

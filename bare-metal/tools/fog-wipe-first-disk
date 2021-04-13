@@ -1,0 +1,296 @@
+#!/bin/python3
+
+# WIP: Do a fast-init to wipe first (vd0) disk on a R340 Fog machine.
+#
+# Hopefully does enough queries to verify the target machine is setup
+# as expected.
+#
+# This is HIGHLY Fog-Machine-Setup specific!
+
+# Author: J. M. Gdaniec, Apr 2021
+
+from bmc_common import *
+
+import argparse
+import time
+import traceback
+
+
+def dbg_echo_resource(name_line_pfx, res, level=1):
+   if get_dbg_volume_level() >= level:
+      dbg("%s \"%s\":\n%s"% (name_line_pfx, res["Name"], json_dumps(res)), level=level)
+
+
+def get_collection_member_with_name(conn, coll_id, names):
+
+   check_names = names if type(names) is list else [names]
+
+   member_ids = conn.get_collection_member_ids(coll_id)
+   for m_id in member_ids:
+      m_res = conn.get_resource(m_id)
+      # print(json_dumps(m_res))
+      if m_res["Name"] in check_names:
+         return m_res
+
+   msg = "Member with name \"%s\" not found in collection %s."
+   raise BMCRequestError(self, msg=msg % (str(names), coll_id))
+
+
+def main():
+
+   # set_dbg_volume_level(5)
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machines", nargs="+")
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+
+   machines  = args.machines
+
+   bmc_conns = dict()
+   action_targets = dict()
+   task_ids = dict()
+   ending_task_ress = dict()
+
+   set_dbg_volume_level(0)
+
+   # Open BMC connections to each of the machines and do pre-checks.
+
+   for machine in machines:
+
+      blurt("Opening BMC connectino with %s and doing pre-checking." % machine)
+
+      bmc_conn = LabBMCConnection.create_connection(machine, args)
+      bmc_conns[machine] = bmc_conn
+
+      system_res = bmc_conn.get_system_resource()
+
+      # The storage collection id is found as the Storage property of the System resource.
+      # This collection's members are the storage substytems/entities.  Each storage entity
+      # has one or more controllers it its StorageControllers list (if you care about the
+      # controller-level properties).  It also has a Volumes collection containing the
+      # volumes, i.e. real or virtual disks.
+
+      # Our goal is to do a fast-init of the virtual disk used as the system install disk.
+      # For the Fog R340 single-node servers, this disk is the virtual disk named "vd0"
+      # (usually the only one) on the integrated PERC H340 Adapter in the system.  Its
+      # identified as Sotrage entitiy "RAID.Integrated.1-1".
+
+      target_stg_res_inst_id = "RAID.Integrated.1-1"
+      target_volume_name = "vd0"
+      expected_stg_ctrl_models = ["PERC H330 Adapter"]
+
+      stg_collection_id = system_res["Storage"]["@odata.id"]
+      target_stg_res_id = stg_collection_id + "/" + target_stg_res_inst_id
+
+      # Get the target Storage resource, and verifiy it represnts the kind of thing expected.
+
+      target_stg_res = bmc_conn.get_resource(target_stg_res_id)
+      dbg_echo_resource("Storage Resource", target_stg_res, level=5)
+      stg_controller = target_stg_res["StorageControllers"][0]
+      ctrl_model = stg_controller["Model"]
+      if ctrl_model not in expected_stg_ctrl_models:
+         die("Storage controller model \"%s\" is not as expected." % ctrl_model)
+
+      # Find the volume with the expected volume name.
+
+      volumes_coll_id = target_stg_res["Volumes"]["@odata.id"]
+      target_vol_res = get_collection_member_with_name(bmc_conn, volumes_coll_id, "vd0")
+      dbg_echo_resource("Volume Resource", target_vol_res, level=5)
+
+      # Bail out if there already some operation in-progress on the volume.
+
+      in_prog_operations = target_vol_res["Operations"]
+      dbg("Volume operations:\n%s" % json_dumps(in_prog_operations), level=5)
+      if len(in_prog_operations) != 0:
+         words = "Another operation is" if len(in_prog_operations) == 1 else "Other operations are"
+         emsg("%s currently in progress on the target virtual disk." % words)
+         for in_prog_op in in_prog_operations:
+            op_name = in_prog_op["OperationName"]
+            op_pct_complete = in_prog_op["PercentageComplete"]
+            emsg("In progress operation: %s (%s percent complete)" % (op_name, op_pct_complete))
+            pass
+         die("Aborting wipe-disk request.")
+
+      # We should find a #Volume.Initialize" Action.  That's what we'll run.
+
+      init_action = target_vol_res["Actions"]["#Volume.Initialize"]
+      init_target = init_action["target"]
+
+      dbg("Action target: %s" % init_target)
+      action_targets[machine] = init_target
+   #
+
+   # All is ok across the machines, so lets get them all working on disk-init.
+
+   blurt("Starting disk-initialization across all of the machines.")
+
+   target_machines = machines.copy()
+
+   # Power all the systems off to start.
+
+   blurt("Powering the machines off.")
+
+   powered_a_machine_off = False
+   for machine in list(target_machines):
+
+      bmc_conn = bmc_conns[machine]
+
+      try:
+         power_state = bmc_conn.get_power_state()
+         dbg("Server %s power state: %s" % (machine, power_state))
+         if power_state != "Off":
+            print("   Powering %s off." % machine)
+            bmc_conn.system_power_off()
+            powered_a_machine_off = True
+         else:
+            print("   System %s was already powered off." % machine)
+
+      except BMCRequetError as exc:
+         emsg("Request error from %s: %s" % (machine, exc))
+         reason = "Could not check/power-off system"
+         blurt("Abaonding further action for %s: %s." % (machine, reason))
+         del target_machines[machine]
+   #
+
+   if powered_a_machine_off:
+      blurt("Pausing a bit to allow the iDRACs to finish power-off.")
+      time.sleep(5)  # Gross
+
+   # Now submit the task requests
+
+   blurt("Submitting disk-initializaiton task requests.")
+
+   for machine in list(target_machines):
+
+      bmc_conn = bmc_conns[machine]
+      init_target = action_targets[machine]
+
+      try:
+         blurt("   Submitting virtual-disk initialize task on %s." % machine)
+
+         options = dict()
+         options["InitializeType"] = "Fast"
+
+         task_id = bmc_conn.start_task(init_target, options)
+         dbg("Task id: %s" % task_id)
+         task_ids[machine] = task_id
+
+      except BMCRequetError as exc:
+         emsg("Request error from %s: %s" % (machine, exc))
+         msg = "Could not submit disk-init task"
+         blurt("Abaonding further action for %s: %s." % (machine, reason))
+         del target_machines[machine]
+   #
+
+   blurt("Pausing a bit to allow the iDRACs to catch up.")
+   time.sleep(5)  # Gross
+
+   # Now power on the machines to get them to run the tasks.
+
+   blurt("Powering the machines on.")
+
+   for machine in list(target_machines):
+
+      bmc_conn = bmc_conns[machine]
+
+      try:
+         print("   Turning %s on." % machine)
+         bmc_conn.system_power_on()
+         known_power_state = "on"
+
+      except BMCRequetError as exc:
+         emsg("Request error from %s: %s" % (machine, exc))
+         msg = "Could not power system %s on after submitting task"
+         blurt("Abaonding further action for %s: %s." % (machine, reason))
+         del target_machines[machine]
+         del task_ids[machine]
+   #
+
+   print("Waiting for submmitted virtual-disk initialize tasks to complete.")
+
+   pending_task_ids = task_ids.copy()
+
+   while pending_task_ids:
+      for machine in list(pending_task_ids):
+         dbg("Checking task status for system %s." % machine, level=2)
+
+         bmc_conn = bmc_conns[machine]
+         task_id  = pending_task_ids[machine]
+
+         try:
+            task_res = bmc_conn.get_task(task_id)
+            if task_has_ended(task_res):
+               blurt("Task for system %s has ended." % machine)
+               del pending_task_ids[machine]
+               ending_task_ress[machine] = task_res
+            else:
+               task_state = task_res["TaskState"]
+               if task_state == "Starting":
+                  # On Dell iDRAC, it seems tasks remaining in Starting while the
+                  # system is going through its power-on initialization.  Then the
+                  # task transitions to running when LC has control.
+                  blurt("System %s is still starting up." % machine)
+               else:
+                  tasK_pct_complete = task_res["PercentComplete"]
+                  blurt("Task for system %s still in progress: %s (%d%% complete)." %
+                        (machine, task_state, tasK_pct_complete))
+         except BMCRequestError as exc:
+            emsg("BMC request error from %s: %s" % (machine, exc))
+            del pending_task_ids[machine]
+            ending_task_ress[machine] = Noe
+
+      if len(pending_task_ids) > 0:
+         time.sleep(15)
+   #
+
+   # All tasks have ended.  Report on completion.
+
+   for machine in task_ids:
+
+      bmc_conn = bmc_conns[machine]
+      task_id  = task_ids[machine]
+      task_res = ending_task_ress[machine]
+
+      if task_res is not None:
+         task_status = task_res["TaskStatus"]
+         task_state = task_res["TaskState"]
+         if task_status == "OK":
+            blurt("Disk-iitialization for %s has comopleted successfully." % machine)
+         else:
+            blurt("Disk initialization for %s has failed.  Ending tatus/state: %s/%s" %
+                  (machine, task_status, task_state))
+      else:
+         blurt("Disk initialize state for % is unknown due to previous errors." % machine)
+   #
+
+   blurt("Pausing a bit to allow the system iDRACs to catch up.")
+   time.sleep(5)  # Gross
+
+   # Power off all of the systems we haven't already abandoned.
+
+   for machine in target_machines:
+
+      bmc_conn = bmc_conns[machine]
+      print("Poweirng %s off." % machine)
+
+      try:
+         bmc_conn.system_power_off()
+      except BMCRequestError as exc:
+         emsg("Request error from %s: %s" % (machine, exc))
+         blurt("System %s may have been left powered on." % machine)
+   #
+
+   blurt("Finished.")
+
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+
