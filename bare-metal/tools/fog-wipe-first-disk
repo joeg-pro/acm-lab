@@ -1,9 +1,9 @@
 #!/bin/python3
 
-# WIP: Do a fast-init to wipe first (vd0) disk on a R340 Fog machine.
+# Do a fast-init to wipe first (vd0) disk on a R340 Fog machine.
 #
 # Hopefully does enough queries to verify the target machine is setup
-# as expected.
+# as expected before doing the wiping.
 #
 # This is HIGHLY Fog-Machine-Setup specific!
 
@@ -21,19 +21,92 @@ def dbg_echo_resource(name_line_pfx, res, level=1):
       dbg("%s \"%s\":\n%s"% (name_line_pfx, res["Name"], json_dumps(res)), level=level)
 
 
-def get_collection_member_with_name(conn, coll_id, names):
+def for_all_on_conn(targets, bmc_conns, func, *args, **kwargs):
 
-   check_names = names if type(names) is list else [names]
+   summarized_result = False
 
-   member_ids = conn.get_collection_member_ids(coll_id)
-   for m_id in member_ids:
-      m_res = conn.get_resource(m_id)
-      # print(json_dumps(m_res))
-      if m_res["Name"] in check_names:
-         return m_res
+   for this_target in list(targets):
+      bmc_conn = bmc_conns[this_target]
+      r = func(this_target, bmc_conn, targets,* args, **kwargs)
+      if type(r) == bool:
+         summarized_result = summarized_result or r
 
-   msg = "Member with name \"%s\" not found in collection %s."
-   raise BMCRequestError(self, msg=msg % (str(names), coll_id))
+   return summarized_result
+
+def power_action(machine, bmc_conn, machines, desired_power_state):
+
+   # desired_power_state is either "Off" or "On".
+
+   did_something = False
+   try:
+      current_power_state = bmc_conn.get_power_state()
+      dbg("Server %s power state: %s" % (machine, current_power_state))
+      if current_power_state != desired_power_state:
+         print("   Powering %s %s." % (machine, desired_power_state))
+         if desired_power_state == "Off":
+            bmc_conn.system_power_off()
+         else:
+            bmc_conn.system_power_on()
+         did_something = True
+      else:
+         print("   System %s was already Powered %s." % (machine, desired_power_state))
+
+   except BMCRequetError as exc:
+      emsg("Request error from %s: %s" % (machine, exc))
+      reason = "Could not check/power-off system"
+      blurt("Abaonding further action for %s: %s." % (machine, reason))
+      machines.remove(machine)
+
+   return did_something
+
+def submit_task(machine, bmc_conn, machines, action_targets, options, task_ids):
+
+   action_target = action_targets[machine]
+
+   try:
+      blurt("   Submitting virtual-disk initialize task on %s." % machine)
+
+      task_id = bmc_conn.start_task(action_target, options)
+      dbg("Task id: %s" % task_id)
+      task_ids[machine] = task_id
+
+   except BMCRequetError as exc:
+      emsg("Request error from %s: %s" % (machine, exc))
+      msg = "Could not submit disk-init task"
+      blurt("Abaonding further action for %s: %s." % (machine, reason))
+      machines.remove(machine)
+
+   return
+#
+
+def check_task_status(machine, bmc_conn, task_ids, ending_task_ress):
+
+   dbg("Checking task status for system %s." % machine, level=2)
+
+   task_id  = task_ids[machine]
+
+   try:
+      task_res = bmc_conn.get_task(task_id)
+      if task_has_ended(task_res):
+         blurt("Task for system %s has ended." % machine)
+         del task_ids[machine]
+         ending_task_ress[machine] = task_res
+      else:
+         task_state = task_res["TaskState"]
+         if task_state == "Starting":
+            # On Dell iDRAC, it seems tasks remaining in Starting while the
+            # system is going through its power-on initialization.  Then the
+            # task transitions to running when LC has control.
+            blurt("System %s is still starting up." % machine)
+         else:
+            tasK_pct_complete = task_res["PercentComplete"]
+            blurt("Task for system %s still in progress: %s (%d%% complete)." %
+                  (machine, task_state, tasK_pct_complete))
+
+   except BMCRequestError as exc:
+      emsg("BMC request error from %s: %s" % (machine, exc))
+      del task_ids[machine]
+      ending_task_ress[machine] = Noe
 
 
 def main():
@@ -96,7 +169,7 @@ def main():
       # Find the volume with the expected volume name.
 
       volumes_coll_id = target_stg_res["Volumes"]["@odata.id"]
-      target_vol_res = get_collection_member_with_name(bmc_conn, volumes_coll_id, "vd0")
+      target_vol_res = bmc_conn.get_collection_member_with_name(volumes_coll_id, "vd0")
       dbg_echo_resource("Volume Resource", target_vol_res, level=5)
 
       # Bail out if there already some operation in-progress on the volume.
@@ -126,63 +199,23 @@ def main():
 
    blurt("Starting disk-initialization across all of the machines.")
 
-   target_machines = machines.copy()
+   target_machines = {m for m in machines}
 
    # Power all the systems off to start.
 
    blurt("Powering the machines off.")
-
-   powered_a_machine_off = False
-   for machine in list(target_machines):
-
-      bmc_conn = bmc_conns[machine]
-
-      try:
-         power_state = bmc_conn.get_power_state()
-         dbg("Server %s power state: %s" % (machine, power_state))
-         if power_state != "Off":
-            print("   Powering %s off." % machine)
-            bmc_conn.system_power_off()
-            powered_a_machine_off = True
-         else:
-            print("   System %s was already powered off." % machine)
-
-      except BMCRequetError as exc:
-         emsg("Request error from %s: %s" % (machine, exc))
-         reason = "Could not check/power-off system"
-         blurt("Abaonding further action for %s: %s." % (machine, reason))
-         del target_machines[machine]
-   #
-
+   powered_a_machine_off = for_all_on_conn(target_machines, bmc_conns, power_action, "Off")
    if powered_a_machine_off:
       blurt("Pausing a bit to allow the iDRACs to finish power-off.")
       time.sleep(5)  # Gross
-
    # Now submit the task requests
 
    blurt("Submitting disk-initializaiton task requests.")
 
-   for machine in list(target_machines):
+   options = dict()
+   options["InitializeType"] = "Fast"
 
-      bmc_conn = bmc_conns[machine]
-      init_target = action_targets[machine]
-
-      try:
-         blurt("   Submitting virtual-disk initialize task on %s." % machine)
-
-         options = dict()
-         options["InitializeType"] = "Fast"
-
-         task_id = bmc_conn.start_task(init_target, options)
-         dbg("Task id: %s" % task_id)
-         task_ids[machine] = task_id
-
-      except BMCRequetError as exc:
-         emsg("Request error from %s: %s" % (machine, exc))
-         msg = "Could not submit disk-init task"
-         blurt("Abaonding further action for %s: %s." % (machine, reason))
-         del target_machines[machine]
-   #
+   for_all_on_conn(target_machines, bmc_conns, submit_task, action_targets, options, task_ids)
 
    blurt("Pausing a bit to allow the iDRACs to catch up.")
    time.sleep(5)  # Gross
@@ -190,57 +223,14 @@ def main():
    # Now power on the machines to get them to run the tasks.
 
    blurt("Powering the machines on.")
-
-   for machine in list(target_machines):
-
-      bmc_conn = bmc_conns[machine]
-
-      try:
-         print("   Turning %s on." % machine)
-         bmc_conn.system_power_on()
-         known_power_state = "on"
-
-      except BMCRequetError as exc:
-         emsg("Request error from %s: %s" % (machine, exc))
-         msg = "Could not power system %s on after submitting task"
-         blurt("Abaonding further action for %s: %s." % (machine, reason))
-         del target_machines[machine]
-         del task_ids[machine]
-   #
+   powered_a_machine_on= for_all_on_conn(target_machines, bmc_conns, power_action, "On")
 
    print("Waiting for submmitted virtual-disk initialize tasks to complete.")
-
-   pending_task_ids = task_ids.copy()
+   pending_task_ids = {m:task_ids[m] for m in target_machines}
 
    while pending_task_ids:
-      for machine in list(pending_task_ids):
-         dbg("Checking task status for system %s." % machine, level=2)
-
-         bmc_conn = bmc_conns[machine]
-         task_id  = pending_task_ids[machine]
-
-         try:
-            task_res = bmc_conn.get_task(task_id)
-            if task_has_ended(task_res):
-               blurt("Task for system %s has ended." % machine)
-               del pending_task_ids[machine]
-               ending_task_ress[machine] = task_res
-            else:
-               task_state = task_res["TaskState"]
-               if task_state == "Starting":
-                  # On Dell iDRAC, it seems tasks remaining in Starting while the
-                  # system is going through its power-on initialization.  Then the
-                  # task transitions to running when LC has control.
-                  blurt("System %s is still starting up." % machine)
-               else:
-                  tasK_pct_complete = task_res["PercentComplete"]
-                  blurt("Task for system %s still in progress: %s (%d%% complete)." %
-                        (machine, task_state, tasK_pct_complete))
-         except BMCRequestError as exc:
-            emsg("BMC request error from %s: %s" % (machine, exc))
-            del pending_task_ids[machine]
-            ending_task_ress[machine] = Noe
-
+      for_all_on_conn(pending_task_ids, bmc_conns, check_task_status,
+                      ending_task_ress)
       if len(pending_task_ids) > 0:
          time.sleep(15)
    #
@@ -269,18 +259,7 @@ def main():
    time.sleep(5)  # Gross
 
    # Power off all of the systems we haven't already abandoned.
-
-   for machine in target_machines:
-
-      bmc_conn = bmc_conns[machine]
-      print("Poweirng %s off." % machine)
-
-      try:
-         bmc_conn.system_power_off()
-      except BMCRequestError as exc:
-         emsg("Request error from %s: %s" % (machine, exc))
-         blurt("System %s may have been left powered on." % machine)
-   #
+   powered_a_machine_on= for_all_on_conn(target_machines, bmc_conns, power_action, "Off")
 
    blurt("Finished.")
 

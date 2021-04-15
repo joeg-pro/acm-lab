@@ -438,6 +438,23 @@ class BMCConnection(object):
       dbg("Returning the %d resources in collection %s" % (cnt, coll_id), level=self.dbg_msg_lvl_api_summary)
       return member_resources
 
+
+   def get_collection_member_with_name(self, coll_id, names):
+      """
+      Returns the first collection member that has the specified name.
+      """
+
+      check_names = names if type(names) is list else [names]
+
+      member_ids = self._get_collection_member_ids(coll_id)
+      for m_id in member_ids:
+         m_res = self._get_resource(m_id)
+         if m_res["Name"] in check_names:
+            return m_res
+
+      msg = "Member with name \"%s\" not found in collection %s."
+      raise BMCRequestError(self, msg=msg % (str(names), coll_id))
+
    # Provide ids/instances of some key collections/resources.
 
    def _get_sys_collection_path(self):
@@ -841,10 +858,11 @@ class LabBMCConnection(object):
       # BMCConnection class, we have to explicitly "export" the methods of the
       # BMCConnection classs that we want to be part of our API.
 
-      self.get_resource              = self.connection.get_resource
-      self.get_collection_member_ids = self.connection.get_collection_member_ids
-      self.get_collection_members    = self.connection.get_collection_members
-      self.get_system_resource       = self.connection.get_this_system_resource
+      self.get_resource           = self.connection.get_resource
+      self.get_collection_members = self.connection.get_collection_members
+      self.get_system_resource    = self.connection.get_this_system_resource
+      self.get_collection_member_ids       = self.connection.get_collection_member_ids
+      self.get_collection_member_with_name = self.connection.get_collection_member_with_name
 
       self.start_task       = self.connection.start_task
       self.get_task         = self.connection.get_task
