@@ -1,0 +1,95 @@
+#!/bin/python3
+
+#
+# This is Highly DELL-iDRAC Specific.
+#
+# Author: J. M. Gdaniec, Apr 2021
+
+from bmc_common import *
+
+import argparse
+import time
+import traceback
+
+def main():
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machines", nargs="+")
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+
+   machines = {m:None for m in args.machines}
+
+   set_dbg_volume_level(0)
+
+   # Open BMC connections to each of the machines and do pre-checks.
+
+   for machine in machines:
+
+      blurt("\nBMC informaiton for %s:\n" % machine)
+
+      bmc_conn = LabBMCConnection.create_connection(machine, args)
+
+      # Figure out the vendor that made this system.
+
+      service_root_res = bmc_conn.get_service_root_resource()
+      vendor = service_root_res["Vendor"]
+      if vendor != "Dell":
+         emsg("This script has not been tested to work wtih %s BMCs." % vendor)
+         exit(5)
+
+      # Get info about the BMC that manages the System whose BMC we're connected to.
+
+      sys_mgr_res = bmc_conn.get_system_manager_resource()
+
+      # Pull out and show some interesting tidbits.
+
+      bmc_firmware_vers = sys_mgr_res["FirmwareVersion"]
+      managed_server_id = sys_mgr_res["Links"]["ManagerForServers"][0]["@odata.id"]
+      bmc_inst_id = sys_mgr_res["Id"]
+
+      dell_oem_links = sys_mgr_res["Links"]["Oem"][vendor]
+      dell_license_coll_id = dell_oem_links["DellLicenseCollection"]["@odata.id"]
+      dell_license_mgr_service_id = dell_oem_links["DellLicenseManagementService"]["@odata.id"]
+
+      # Notes:
+      # BMC MAC is in the service root resource (I think).
+      # oem.Dell.DelliDRACCard.URLstring has Web interface URL.
+
+      blurt("Firmware Version: %s" % bmc_firmware_vers)
+      blurt("iDRAC Licenses:")
+
+      ome_license_description = "OpenManage Enterprise Advanced"
+
+      dell_licenses = bmc_conn.get_collection_members(dell_license_coll_id)
+      for dell_license in dell_licenses:
+         if bmc_inst_id in dell_license["AssignedDevices"]:
+            # blurt(json_dumps(dell_license))
+            l_descr = dell_license["LicenseDescription"][0]
+            l_entitlement_id = dell_license["EntitlementID"]
+            l_type = dell_license["LicenseType"]
+            l_annot = None
+            if l_type == "Evaluation":
+               l_remaining_days = dell_license["EvalLicenseTimeRemainingDays"]
+               l_expires_on = dell_license["LicenseEndDate"]
+               if l_remaining_days > 0:
+                  l_expire_annot = "%d days remaining" % l_remaining_days
+               else:
+                  l_expire_annot = "expired"
+               l_annot = "%s, %s" % (l_type, l_expire_annot)
+            else:
+               l_annot = l_type
+            blurt("   %s - %s [%s]" % (l_descr, l_annot, l_entitlement_id))
+      #
+   #
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+

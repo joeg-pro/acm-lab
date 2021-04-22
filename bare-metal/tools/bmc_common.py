@@ -1,5 +1,9 @@
 
-# Some common functions for ACM Lab BMC (Redfish) stuff.
+# Some common functions for interacting with a RedFish BMC.
+#
+# Ideally, this will be kept vendor-neutral, or at least be able to support the set of
+# vendor eqipment we have.  But is a goal and not likely a realiaty, as we only have
+# Dell stuff to test with (Dell iDRAC 9 stuff, to be more specific).
 
 # Assumes: Python 3.6+
 
@@ -23,6 +27,9 @@ def _get_resource_id(res):
 def json_dumps(thing):
    return json.dumps(thing, indent=3, sort_keys=True)
 
+def _resp_json(resp):
+   return dict() if resp.text == "" else resp.json()
+
 class BMCError(Exception):
    pass
 
@@ -30,13 +37,16 @@ class BMCRequestError(BMCError):
 
    def __init__(self, connection, resp=None, msg=None):
 
+      self.response = resp
+      self.status   = None
+
       if msg is not None:
          self.message   = msg
-         self.status    = None
 
       elif resp is not None:
-         self.response  = resp
          self.status    = resp.status_code
+
+         dbg("Raising error for RedFish response:\n%s" % json_dumps(_resp_json(resp)), level=9)
 
          resp_json = {}
          if resp.text is not None:
@@ -69,10 +79,6 @@ class BMCRequestError(BMCError):
          return self.message
       else:
          return "Status %d: %s" % (self.status, self.message)
-
-def _resp_json(resp):
-   return dict() if resp.text == "" else resp.json()
-
 
 # All Redfish task states:
 #
@@ -190,7 +196,6 @@ class BMCConnection(object):
          except BMCError:
             dbg("BMC exception raised during open-session closing. Ignoring.", level=dbg_msg_level)
 
-
    def _check_for_error(self, resp):
 
       # dbg("Response status: %d" % resp.status_code)
@@ -210,6 +215,44 @@ class BMCConnection(object):
             return resp
 
       raise BMCRequestError(self, resp=resp)
+
+   # Issue request and do one retry if we caught the BMC in a not-ready state.
+   def _req_and_retry(self, func, *args, **kwargs):
+
+      # UGH: Dell iDRAC specific stuff.
+
+      # iDRAC seems prone to rejecting requests with an "I'm not ready" response indicated
+      # as a 400 with msg "iDRAC is not ready. The configuration values cannot be accessed.
+      # Please retry after a few minutes." Its not really clear what causes this, as it
+      # sometimes occurs even on GET requests for things that should seem safe and easy,
+      # as getting the System resource to check poiwer status, or getting a Task resource
+      # to check job status.  One theory is that we're catching iDRAC just at the moment
+      # an (async) state change is happening and it can't handle that.
+
+      # As a bandaid, if we get a 400 response with the indicated msg (as determined by its
+      # msg id, not its text, we'll wait a few secs and try one more time.
+
+      resp = func(*args, **kwargs)
+      if resp.status_code != 400:
+         return resp
+
+      msg_id = None
+      resp_json = _resp_json(resp)
+      try:
+         err = resp_json["error"]
+         extended_info = err["@Message.ExtendedInfo"][0]
+         msg_id = extended_info["MessageId"]
+      except:
+         # Oops, tripped over ourselves.  Give up retry attempt.
+         return resp
+
+      if msg_id == "IDRAC.2.2.SWC0700":
+         # Error is an "iDRAC not ready one.  Wait and retry.
+         dbg("Got iDRAC-not-ready error. Retrying request after pause.", level=self.dbg_msg_lvl_rf_requests)
+         time.sleep(5)  # Arbitrary, but kinda recommended by corrective-action in iDRAC response.
+         resp = func(*args, **kwargs)
+
+      return resp
 
    def redfish_request(self, method, resource_path, query_parms=None, body=None, headers=None, unauth=False):
       """
@@ -264,30 +307,34 @@ class BMCConnection(object):
          if query_parms is not None:
             qp = " (Query Parms: %s)" % query_parms
          dbg("GETting URI: %s%s" % (uri, qp), level=dbg_msg_lvl)
-         resp = requests.get(uri, params=query_parms, verify=self.verify, auth=creds, headers=hdrs)
+         resp = self._req_and_retry(requests.get, uri, params=query_parms,
+                                    verify=self.verify, auth=creds, headers=hdrs)
 
       elif method == "POST":
          dbg("POSTing to URI: %s" % uri, level=dbg_msg_lvl)
          if body is not None:
             dbg("...with JSON body:\n%s" % json_dumps(display_body), level=dbg_msg_lvl)
-         resp = requests.post(uri, json=body, verify=self.verify, auth=creds, headers=hdrs)
+         resp = self._req_and_retry(requests.post, uri, json=body,
+                                    verify=self.verify, auth=creds, headers=hdrs)
 
       elif method == "PATCH":
          dbg("PATCHing URI: %s" % uri, level=dbg_msg_lvl)
          if body is not None:
             dbg("...with JSON body:\n%s" % json_dumps(display_body), level=dbg_msg_lvl)
-         resp = requests.patch(uri, json=body, verify=self.verify, auth=creds, headers=hdrs)
+         resp = self._req_and_retry(requests.patch, uri, json=body,
+                                    verify=self.verify, auth=creds, headers=hdrs)
 
       elif method == "DELETE":
          dbg("DELETing URI: %s" % uri, level=dbg_msg_lvl)
-         resp = requests.delete(uri, verify=self.verify, auth=creds, headers=hdrs)
+         resp = self._req_and_retry(requests.delete, uri, verify=self.verify,
+                                    auth=creds, headers=hdrs)
 
       # Only a few requests (eg. authenticating via session-auth, creating things) care about
       # the response headers, so we return just the response body as our return value.
       # But for those that need thems, we stash the entire response in self.last_response
       # for code to do as it pleases.  This approach would not work if we supported multiple
       # concurrent requests on a connection, but it seems unlikely we'll want to do that
-      # (and not clear how, even if we wanted, given HTTP request/response orientation).
+      # (and not clear how to do even if we wanted, given HTTP request/response orientation).
 
       self.last_response = resp
       return (self._check_for_error(resp))
@@ -371,7 +418,7 @@ class BMCConnection(object):
       dbg("Getting resource %s" % res_id, level=self.dbg_msg_lvl_api_summary)
       return self._get_resource(res_id, cacheable=cacheable)
 
-   # Task (Action/Job) management.
+   # Task (Async Action/Job) management.
 
    def _start_task(self, task_start_path, task_body):
 
@@ -393,16 +440,34 @@ class BMCConnection(object):
    def get_task(self, task_id):
       return self._get_task(task_id)
 
+   # Sync Action management.
+
+   def _perform_action(self, action_path, action_body):
+
+      resp_body = self.do_post(action_path, action_body)
+      resp_hdrs = self.last_response.headers
+      # task_id = resp_hdrs["Location"]
+      return resp_body
+
+   def perform_action(self, action_path, action_body):
+      return self._perform_action(action_path, action_body)
+
+
    # Collection CRUD.
 
    def _get_collection(self, coll_id, expand=0):
+
       # Note: We don't cache the collection resource because we're not going to
       # track any additions or removals from it, at least not yet.
+
       query_parm = None
       if expand != 0:
          query_parm = {"$expand": ".($levels=%d)" % expand}
       coll = self.do_get(coll_id, query_parms=query_parm)
       return coll
+
+   def get_collection(self, coll_id):
+      return self._get_collection(coll_id)
 
    def _get_collection_member_ids(self, coll_id):
       coll = self._get_collection(coll_id)
@@ -437,7 +502,6 @@ class BMCConnection(object):
       cnt = len(member_resources)
       dbg("Returning the %d resources in collection %s" % (cnt, coll_id), level=self.dbg_msg_lvl_api_summary)
       return member_resources
-
 
    def get_collection_member_with_name(self, coll_id, names):
       """
@@ -492,14 +556,10 @@ class BMCConnection(object):
       # Probably: /redfish/v1/AccountService
       return self.svc_root_res["AccountService"]["@odata.id"]
 
-   def _get_acct_svc_resource(self):
-      res_path = self._get_acct_svc_path()
-      return self._get_resource(res_path)
+   # Root service/system stuff.
 
-   def _get_acct_collection_path(self):
-      # Probably: /redfish/v1/AccountService/Accounts
-      res = self._get_acct_svc_resource()
-      return res["Accounts"]["@odata.id"]
+   def get_service_root_resource(self):
+      return self.svc_root_res
 
    def _get_this_system_id(self):
       if self.this_system_id is not None:
@@ -520,11 +580,48 @@ class BMCConnection(object):
       dbg("Determined this system id: %s" % self.this_system_id, level=3)
       return self.this_system_id
 
+   def _get_this_system_resource(self, cacheable=True):
+      res_id = self._get_this_system_id()
+      return self._get_resource(res_id, cacheable=cacheable)
+
    def get_this_system_resource(self, cacheable=True):
-      res_path = self._get_this_system_id()
-      return self._get_resource(res_path, cacheable=cacheable)
+      return self._get_this_system_resource(cacheable=cacheable)
+
+   def _get_this_system_manager_id(self):
+
+      # We expect the BMC to be represented as the single Manager of the System resource.
+      # So look for the first (assumed only) ManagedBy Link of the System resource.
+
+      this_sys_res = self._get_this_system_resource()
+      return this_sys_res["Links"]["ManagedBy"][0]["@odata.id"]
+
+   def _get_this_system_manager_resource(self, cacheable=True):
+
+      res_id = self._get_this_system_manager_id()
+      res = self._get_resource(res_id, cacheable=cacheable)
+
+      # Sanity check.  Make sure is a BMC.
+
+      mgr_type = res["ManagerType"]
+      if mgr_type != "BMC":
+         raise BMCRequestError(self, msg="Redfish service is not of Manager-Type BMC.")
+
+      return res
+
+   def get_this_system_manager_resource(self, cacheable=True):
+      return self._get_this_system_manager_resource(cacheable=cacheable)
+
 
    # Account management.
+
+   def _get_acct_svc_resource(self):
+      res_path = self._get_acct_svc_path()
+      return self._get_resource(res_path)
+
+   def _get_acct_collection_path(self):
+      # Probably: /redfish/v1/AccountService/Accounts
+      res = self._get_acct_svc_resource()
+      return res["Accounts"]["@odata.id"]
 
    def _get_accounts(self, want_user_name=None, find_empty_slot=False):
 
@@ -859,13 +956,18 @@ class LabBMCConnection(object):
       # BMCConnection classs that we want to be part of our API.
 
       self.get_resource           = self.connection.get_resource
+      self.get_collection         = self.connection.get_collection
       self.get_collection_members = self.connection.get_collection_members
-      self.get_system_resource    = self.connection.get_this_system_resource
       self.get_collection_member_ids       = self.connection.get_collection_member_ids
       self.get_collection_member_with_name = self.connection.get_collection_member_with_name
 
-      self.start_task       = self.connection.start_task
-      self.get_task         = self.connection.get_task
+      self.get_service_root_resource   = self.connection.get_service_root_resource
+      self.get_system_resource         = self.connection.get_this_system_resource
+      self.get_system_manager_resource = self.connection.get_this_system_manager_resource
+
+      self.start_task     = self.connection.start_task
+      self.get_task       = self.connection.get_task
+      self.perform_action = self.connection.perform_action
 
       self.get_power_state         = self.connection.get_power_state
       self.get_system_power_state  = self.connection.get_power_state

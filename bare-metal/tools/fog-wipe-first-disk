@@ -1,6 +1,6 @@
 #!/bin/python3
 
-# Do a fast-init to wipe first (vd0) disk on a R340 Fog machine.
+# Do a fast-init to wipe virtual disk "system" on a R340 Fog machine.
 #
 # Hopefully does enough queries to verify the target machine is setup
 # as expected before doing the wiping.
@@ -27,7 +27,7 @@ def for_all_on_conn(targets, bmc_conns, func, *args, **kwargs):
 
    for this_target in list(targets):
       bmc_conn = bmc_conns[this_target]
-      r = func(this_target, bmc_conn, targets,* args, **kwargs)
+      r = func(this_target, bmc_conn, targets, *args, **kwargs)
       if type(r) == bool:
          summarized_result = summarized_result or r
 
@@ -51,11 +51,11 @@ def power_action(machine, bmc_conn, machines, desired_power_state):
       else:
          print("   System %s was already Powered %s." % (machine, desired_power_state))
 
-   except BMCRequetError as exc:
+   except BMCRequestError as exc:
       emsg("Request error from %s: %s" % (machine, exc))
       reason = "Could not check/power-off system"
       blurt("Abaonding further action for %s: %s." % (machine, reason))
-      machines.remove(machine)
+      del machines[machine]
 
    return did_something
 
@@ -74,7 +74,7 @@ def submit_task(machine, bmc_conn, machines, action_targets, options, task_ids):
       emsg("Request error from %s: %s" % (machine, exc))
       msg = "Could not submit disk-init task"
       blurt("Abaonding further action for %s: %s." % (machine, reason))
-      machines.remove(machine)
+      del machines[machine]
 
    return
 #
@@ -106,7 +106,7 @@ def check_task_status(machine, bmc_conn, task_ids, ending_task_ress):
    except BMCRequestError as exc:
       emsg("BMC request error from %s: %s" % (machine, exc))
       del task_ids[machine]
-      ending_task_ress[machine] = Noe
+      ending_task_ress[machine] = None
 
 
 def main():
@@ -146,12 +146,12 @@ def main():
       # volumes, i.e. real or virtual disks.
 
       # Our goal is to do a fast-init of the virtual disk used as the system install disk.
-      # For the Fog R340 single-node servers, this disk is the virtual disk named "vd0"
+      # For the Fog R340 single-node servers, this disk is the virtual disk named "system"
       # (usually the only one) on the integrated PERC H340 Adapter in the system.  Its
       # identified as Sotrage entitiy "RAID.Integrated.1-1".
 
       target_stg_res_inst_id = "RAID.Integrated.1-1"
-      target_volume_name = "vd0"
+      target_volume_name = "system"
       expected_stg_ctrl_models = ["PERC H330 Adapter"]
 
       stg_collection_id = system_res["Storage"]["@odata.id"]
@@ -169,7 +169,7 @@ def main():
       # Find the volume with the expected volume name.
 
       volumes_coll_id = target_stg_res["Volumes"]["@odata.id"]
-      target_vol_res = bmc_conn.get_collection_member_with_name(volumes_coll_id, "vd0")
+      target_vol_res = bmc_conn.get_collection_member_with_name(volumes_coll_id, target_volume_name)
       dbg_echo_resource("Volume Resource", target_vol_res, level=5)
 
       # Bail out if there already some operation in-progress on the volume.
@@ -199,7 +199,7 @@ def main():
 
    blurt("Starting disk-initialization across all of the machines.")
 
-   target_machines = {m for m in machines}
+   target_machines = {m:None for m in machines}
 
    # Power all the systems off to start.
 
@@ -207,7 +207,7 @@ def main():
    powered_a_machine_off = for_all_on_conn(target_machines, bmc_conns, power_action, "Off")
    if powered_a_machine_off:
       blurt("Pausing a bit to allow the iDRACs to finish power-off.")
-      time.sleep(5)  # Gross
+      time.sleep(10)  # Gross
    # Now submit the task requests
 
    blurt("Submitting disk-initializaiton task requests.")
@@ -218,7 +218,7 @@ def main():
    for_all_on_conn(target_machines, bmc_conns, submit_task, action_targets, options, task_ids)
 
    blurt("Pausing a bit to allow the iDRACs to catch up.")
-   time.sleep(5)  # Gross
+   time.sleep(10)  # Gross
 
    # Now power on the machines to get them to run the tasks.
 
@@ -252,11 +252,11 @@ def main():
             blurt("Disk initialization for %s has failed.  Ending tatus/state: %s/%s" %
                   (machine, task_status, task_state))
       else:
-         blurt("Disk initialize state for % is unknown due to previous errors." % machine)
+         blurt("Disk initialize state for %s is unknown due to previous errors." % machine)
    #
 
    blurt("Pausing a bit to allow the system iDRACs to catch up.")
-   time.sleep(5)  # Gross
+   time.sleep(10)  # Gross
 
    # Power off all of the systems we haven't already abandoned.
    powered_a_machine_on= for_all_on_conn(target_machines, bmc_conns, power_action, "Off")
@@ -272,4 +272,23 @@ if __name__ == "__main__":
    except Exception:
       traceback.print_exc()
       die("Unhandled exception!")
+
+#{
+#   "error": {
+#      "@Message.ExtendedInfo": [
+#         {
+#            "Message": "iDRAC is not ready. The configuration values cannot be accessed. Please retry after a few minutes.",
+#            "MessageArgs": [],
+#            "MessageArgs@odata.count": 0,
+#            "MessageId": "IDRAC.2.2.SWC0700",
+#            "RelatedProperties": [],
+#            "RelatedProperties@odata.count": 0,
+#            "Resolution": "Turn off the system, Remove AC. Wait for 5 seconds. Connect AC. Turn it on.",
+#            "Severity": "Critical"
+#         }
+#      ],
+#      "code": "Base.1.7.GeneralError",
+#      "message": "A general error has occurred. See ExtendedInfo for more information"
+#   }
+# }
 
