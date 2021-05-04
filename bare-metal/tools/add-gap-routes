@@ -33,7 +33,7 @@ while getopts "$opt_flags" OPTION; do
 done
 shift "$(($OPTIND -1))"
 
-slot_nr="${1:-$ACM_LAB_BM_SLOT_NR}"
+slot_nr="${1:-$ACM_LAB_SLOT_NR}"
 gap_last_octet_on_158="$2"
 
 if [[ -z "$slot_nr" ]]; then
