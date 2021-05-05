@@ -12,10 +12,11 @@
 
 me=$(basename $0)
 
-opt_flags="dDpP"
+opt_flags="dDpPaA"
 
 add_route_for_data=0
 add_route_for_provisioning=1
+apply_changes=1
 
 while getopts "$opt_flags" OPTION; do
    case "$OPTION" in
@@ -26,6 +27,10 @@ while getopts "$opt_flags" OPTION; do
       p) add_route_for_provisioning=1
          ;;
       P) add_route_for_provisioning=0
+         ;;
+      a) apply_changes=1
+         ;;
+      A) apply_changes=0
          ;;
       ?) exit 1
          ;;
@@ -68,7 +73,12 @@ if [[ $add_route_for_data -eq 1 ]]; then
    sudo nmcli con mod $our_intf_on_158 +ipv4.routes "$data_subnet $gap_vm_ip_addr"
 fi
 
-sudo nmcli con reload $our_intf_on_158
-sudo nmcli dev reapply $our_intf_on_158
+if [[ "$apply_changes" -eq  1 ]]; then
 
-echo "Routing changes have been re-applied."
+   sudo nmcli con reload $our_intf_on_158
+   sudo nmcli dev reapply $our_intf_on_158
+
+   echo "Routing changes have been applied."
+else
+   echo "Routing changes are pending and will be applied on reboot."
+fi
