@@ -70,18 +70,20 @@ locals {
   # reflects that some VLANs are named in a different way in the switch config, eg.
   # VLAN 158 is named specially since it is a connection to the RH Network.
 
-  nic1_vlan_name = local.n1_v_id == 158 ? "rh-network-158" : format("bm-vlan-%03d", local.n1_v_id)
-  nic2_vlan_name = local.n2_v_id == 158 ? "rh-network-158" : format("bm-vlan-%03d", local.n2_v_id)
+  nic1_vlan_name = local.n1_v_id == 158 ? "rh-network-158" : format("test-slot-vlan-%03d", local.n1_v_id)
+  nic2_vlan_name = local.n2_v_id == 158 ? "rh-network-158" : format("test-slot-vlan-%03d", local.n2_v_id)
 }
 
 resource junos_interface_physical nic1_sw_port {
   name         = local.nic1_port_name
   description  = local.nic1_port_descr
+  trunk        = false
   vlan_members = [local.nic1_vlan_name]
 }
 
 resource junos_interface_physical nic2_sw_port {
   name         = local.nic2_port_name
   description  = local.nic2_port_descr
+  trunk        = false
   vlan_members = [local.nic2_vlan_name]
 }
