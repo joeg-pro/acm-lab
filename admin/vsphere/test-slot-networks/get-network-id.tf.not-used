@@ -1,0 +1,28 @@
+
+# Note: Not currently used/doesn't work.  See comments in import.sh.
+
+# This TF sutff provides a way to get the id of an existing port group/network so as to
+# be able to import the resource into the config.  Its necessary because the VSphere module
+#  doesn't provide a resonable way to imporrt an existing network without knowing its
+# internal-to-VSphere (i.e. can't predict) id.  (A reasonable way miight be to allow an import
+# giving a port-group name, which is a key that has to be unique in a VCenter datacenter.)
+
+variable import_network_name {
+  type    = string
+  default = ""
+}
+
+locals {
+  import_requested = var.import_network_name != "" ? 1 : 0
+  import_id_result = local.import_requested == 1 ? data.vsphere_network.import_network[0].id : ""
+}
+
+data vsphere_network import_network {
+  count         = local.import_requested
+  name          = var.import_network_name
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+output import_network_id {
+  value = local.import_id_result
+}

@@ -1,0 +1,17 @@
+
+# Defaulted:
+
+# vcenter_server           = "10.1.158.10"
+# datacenter_name          = "ACM Lab Datacenter"
+# private_network_dvs_name = "Intra-Lab 1Gb dVSwitch"
+
+# Required:
+
+vcenter_user_file        = "/home/user/.secrets/vsphere-username.txt"
+vcenter_password_file    = "/home/user/.secrets/vsphere-password.txt"
+
+# Alternatively, username and password can be specifeid in-line using
+# variable names wtihtout the _file suffix.  (Not recommended since it can lead
+# to creds leakage if accidentally committed back to Git.)
+
+
