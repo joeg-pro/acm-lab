@@ -1,0 +1,18 @@
+
+# Required:
+
+slot_list             = [12]
+
+vcenter_user_file     = "/home/user/.secrets/vsphere-username.txt"
+vcenter_password_file = "/home/user/.secrets/vsphere-password.txt"
+
+# Defaulted:
+
+# gap_template_name    = "latest"
+# gap_template_pattern = "vm/VM Templates/Base-RHEL-8-GAP-2021-06-07"
+
+# vcenter_server   = "10.1.158.10"
+# datacenter_name  = "ACM Lab Datacenter"
+# cluster_name     = "Workload Cluster"
+# datastore_name   = "Mist_Workload_B"
+# slot_folder_root = "Test Slot Infrastructure"
