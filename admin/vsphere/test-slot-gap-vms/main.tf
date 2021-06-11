@@ -105,9 +105,11 @@ module gap_vms {
 
   slot_nr     = each.key
 
-  nic1_network_name = "Red Hat Network"
-  nic2_network_name = format("Test Slot %02d Data Network", each.key)
-  nic3_network_name = format("Test Slot %02d Provisioning Network", each.key)
+  network_names = [
+     "Red Hat Network",
+     format("Test Slot %02d Data Network", each.key),
+     format("Test Slot %02d Provisioning Network", each.key)
+  ]
 
   template_name     = local.gap_template_name
 
@@ -126,9 +128,11 @@ module test_vms {
 
   slot_nr     = each.key
 
-  nic1_network_name = format("Test Slot %02d Data Network", each.key)
-  nic2_network_name = format("Test Slot %02d Provisioning Network", each.key)
-  nic3_network_name = format("Test Slot %02d Provisioning Network", each.key)
+  network_names = [
+     format("Test Slot %02d Data Network", each.key),
+     format("Test Slot %02d Provisioning Network", each.key),
+     format("Test Slot %02d Provisioning Network", each.key),
+  ]
 
   template_name     = local.test_vm_template_name
 

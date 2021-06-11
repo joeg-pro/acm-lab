@@ -1,5 +1,4 @@
 
-
 variable vm_name {
   description = "Name of the VM."
   type = string
@@ -21,19 +20,9 @@ variable slot_nr {
   type = number
 }
 
-variable nic1_network_name {
-  description = "Name of the virtual network/port group to which NIC1 is to be connected."
-  type = string
-}
-
-variable nic2_network_name {
-  description = "Name the virtual network/port group to which NIC2 is to be connected."
-  type = string
-}
-
-variable nic3_network_name {
-  description = "Name the virtual network/port group to which NIC3 is to be connected."
-  type = string
+variable network_names {
+  description = "Names of the virtual network/port group to which NICs are connected, in NIC order."
+  type = list(string)
 }
 
 #--- VSphere Resources ---

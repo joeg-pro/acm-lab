@@ -7,27 +7,26 @@ terraform {
   }
 }
 
-data vsphere_network nic1_network {
-  datacenter_id = var.datacenter_id
-  name          = var.nic1_network_name
-}
+# Notes:
+# While this TF config is in a module deemed test-slot specific by its name, it is
+# inching ever closer to being a pretty generic "clone vm from other vm/template"
+# thing.
 
-data vsphere_network nic2_network {
-  datacenter_id = var.datacenter_id
-  name          = var.nic2_network_name
-}
+# Var.network_names is the list of networks to which NICs are attached, in NIC order.
+# There could be dup names in this list.  Resolve them to a corresponding list of
+# network resource ids that preserves the NIC ordering.
 
-data vsphere_network nic3_network {
+data vsphere_network net {
+  for_each      = toset(var.network_names)
   datacenter_id = var.datacenter_id
-  name          = var.nic3_network_name
+  name          = each.key
 }
 
 locals {
-  network_ids = [
-    data.vsphere_network.nic1_network.id,
-    data.vsphere_network.nic2_network.id,
-    data.vsphere_network.nic3_network.id
-  ]
+   network_ids = [for nn in var.network_names : data.vsphere_network.net[nn].id]
+}
+
+locals {
 
   signature = format("%s/%s/%s", var.template_name, var.vm_name, var.slot_nr)
 
@@ -131,10 +130,10 @@ resource vsphere_virtual_machine vm {
 
   }
 
-  # While template we use is delivered/imported into VSphere as an OVA, it
-  # doesn't have vapp properties defined in it, per se, because the VM/OVA
-  # is not built using VSphere.  Bbut its emabled to accept a guestInfo
-  # property none-the-less, which happily we can set via extra_config.
+  # While template we use is delivered/imported into VSphere as an OVA, it doesn't have vapp
+  # properties defined in it, per se, because the VM/OVA is not built using VSphere.  Bbut its
+  # emabled to accept guestInfo properties none-the-less, which happily we can set via
+  # extra_config.
 
   # vapp {
   #   properties = {
