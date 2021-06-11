@@ -21,18 +21,18 @@ variable slot_nr {
   type = number
 }
 
-variable ext_network_name {
-  description = "Name of the virtual network/port group providing external connectivity."
+variable nic1_network_name {
+  description = "Name of the virtual network/port group to which NIC1 is to be connected."
   type = string
 }
 
-variable data_network_name {
-  description = "Name the virtual network/port group serving as the internal datat network."
+variable nic2_network_name {
+  description = "Name the virtual network/port group to which NIC2 is to be connected."
   type = string
 }
 
-variable prov_network_name {
-  description = "Name the virtual network/port group serving as the internal datat network."
+variable nic3_network_name {
+  description = "Name the virtual network/port group to which NIC3 is to be connected."
   type = string
 }
 

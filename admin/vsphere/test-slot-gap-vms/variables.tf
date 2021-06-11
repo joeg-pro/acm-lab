@@ -6,9 +6,21 @@ variable gap_template_name {
 }
 
 variable gap_template_pattern {
-  description = "Template name pattern used to find latest version."
+  description = "Template name pattern used to find GAP template latest version."
   type    = string
   default = "vm/VM Templates/Base-RHEL-8-GAP"
+}
+
+variable test_vm_template_name {
+  description = "Name of template to use to create the Test VM, or latest."
+  type    = string
+  default = "latest"
+}
+
+variable test_vm_template_pattern {
+  description = "Template name pattern used to find test VM template latest version."
+  type    = string
+  default = "vm/VM Templates/Base-RHEL-8-NGW"
 }
 
 variable slot_list {

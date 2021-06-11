@@ -7,26 +7,26 @@ terraform {
   }
 }
 
-data vsphere_network ext_network {
+data vsphere_network nic1_network {
   datacenter_id = var.datacenter_id
-  name          = var.ext_network_name
+  name          = var.nic1_network_name
 }
 
-data vsphere_network data_network {
+data vsphere_network nic2_network {
   datacenter_id = var.datacenter_id
-  name          = var.data_network_name
+  name          = var.nic2_network_name
 }
 
-data vsphere_network prov_network {
+data vsphere_network nic3_network {
   datacenter_id = var.datacenter_id
-  name          = var.prov_network_name
+  name          = var.nic3_network_name
 }
 
 locals {
   network_ids = [
-    data.vsphere_network.ext_network.id,
-    data.vsphere_network.data_network.id,
-    data.vsphere_network.prov_network.id
+    data.vsphere_network.nic1_network.id,
+    data.vsphere_network.nic2_network.id,
+    data.vsphere_network.nic3_network.id
   ]
 
   signature = format("%s/%s/%s", var.template_name, var.vm_name, var.slot_nr)
@@ -44,7 +44,7 @@ locals {
 
   try_core_counts   = local.total_is_even ? [for i in range(1, 20) : i] : []
   valid_core_counts = [for c in local.try_core_counts : ((local.total_cores % c) == 0 ? c : 0)]
-  multi_socket_cps  = max(local.valid_core_counts ...)
+  multi_socket_cps  = local.total_is_even ? max(local.valid_core_counts ...) : 0
 
 }
 
@@ -131,7 +131,7 @@ resource vsphere_virtual_machine vm {
 
   }
 
-  # While the GAP template is delivered/imported into VSphere as an OVA, it
+  # While template we use is delivered/imported into VSphere as an OVA, it
   # doesn't have vapp properties defined in it, per se, because the VM/OVA
   # is not built using VSphere.  Bbut its emabled to accept a guestInfo
   # property none-the-less, which happily we can set via extra_config.
