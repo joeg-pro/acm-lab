@@ -103,7 +103,10 @@ def do_the_thing_for_machine(machine):
             m_args = (l_type, l_descr)
          wmsg(m_text % m_args)
          return 1
-      # XXX Base64 encode the license data.
+
+      # License not already present, install (import) it....
+
+      # Base64 encode the license data.
 
       l_contents_bytes     = license_contents.encode("UTF-8")
       l_contents_b64_bytes = base64.b64encode(l_contents_bytes)
@@ -126,8 +129,6 @@ def do_the_thing_for_machine(machine):
       resp = bmc_conn.perform_action(import_action_target, import_body)
 
       blurt("License %s [%s] was successfully installed." % (target_license_descr, target_entitlement_id))
-
-   # License not already present, install (import) it.
 
    elif removing_license:
 
