@@ -10,6 +10,7 @@
 # Author: J. M. Gdaniec, Apr 2021
 
 from bmc_common import *
+from fog_common import *
 
 import argparse
 import time
@@ -19,95 +20,6 @@ import traceback
 def dbg_echo_resource(name_line_pfx, res, level=1):
    if get_dbg_volume_level() >= level:
       dbg("%s \"%s\":\n%s"% (name_line_pfx, res["Name"], json_dumps(res)), level=level)
-
-
-def for_all_on_conn(targets, bmc_conns, func, *args, **kwargs):
-
-   summarized_result = False
-
-   for this_target in list(targets):
-      bmc_conn = bmc_conns[this_target]
-      r = func(this_target, bmc_conn, targets, *args, **kwargs)
-      if type(r) == bool:
-         summarized_result = summarized_result or r
-
-   return summarized_result
-
-def power_action(machine, bmc_conn, machines, desired_power_state):
-
-   # desired_power_state is either "Off" or "On".
-
-   did_something = False
-   try:
-      current_power_state = bmc_conn.get_power_state()
-      dbg("Server %s power state: %s" % (machine, current_power_state))
-      if current_power_state != desired_power_state:
-         print("   Powering %s %s." % (machine, desired_power_state))
-         if desired_power_state == "Off":
-            bmc_conn.system_power_off()
-         else:
-            bmc_conn.system_power_on()
-         did_something = True
-      else:
-         print("   System %s was already Powered %s." % (machine, desired_power_state))
-
-   except BMCRequestError as exc:
-      emsg("Request error from %s: %s" % (machine, exc))
-      reason = "Could not check/power-off system"
-      blurt("Abaonding further action for %s: %s." % (machine, reason))
-      del machines[machine]
-
-   return did_something
-
-def submit_task(machine, bmc_conn, machines, action_targets, options, task_ids):
-
-   action_target = action_targets[machine]
-
-   try:
-      blurt("   Submitting virtual-disk initialize task on %s." % machine)
-
-      task_id = bmc_conn.start_task(action_target, options)
-      dbg("Task id: %s" % task_id)
-      task_ids[machine] = task_id
-
-   except BMCRequetError as exc:
-      emsg("Request error from %s: %s" % (machine, exc))
-      msg = "Could not submit disk-init task"
-      blurt("Abaonding further action for %s: %s." % (machine, reason))
-      del machines[machine]
-
-   return
-#
-
-def check_task_status(machine, bmc_conn, task_ids, ending_task_ress):
-
-   dbg("Checking task status for system %s." % machine, level=2)
-
-   task_id  = task_ids[machine]
-
-   try:
-      task_res = bmc_conn.get_task(task_id)
-      if task_has_ended(task_res):
-         blurt("Task for system %s has ended." % machine)
-         del task_ids[machine]
-         ending_task_ress[machine] = task_res
-      else:
-         task_state = task_res["TaskState"]
-         if task_state == "Starting":
-            # On Dell iDRAC, it seems tasks remaining in Starting while the
-            # system is going through its power-on initialization.  Then the
-            # task transitions to running when LC has control.
-            blurt("System %s is still starting up." % machine)
-         else:
-            tasK_pct_complete = task_res["PercentComplete"]
-            blurt("Task for system %s still in progress: %s (%d%% complete)." %
-                  (machine, task_state, tasK_pct_complete))
-
-   except BMCRequestError as exc:
-      emsg("BMC request error from %s: %s" % (machine, exc))
-      del task_ids[machine]
-      ending_task_ress[machine] = None
-
 
 def main():
 
@@ -197,40 +109,43 @@ def main():
 
    # All is ok across the machines, so lets get them all working on disk-init.
 
-   blurt("Starting disk-initialization across all of the machines.")
+   short_task_name = "virtual-disk-init"
+   blurt("Starting %s across all of the machines." % short_task_name)
 
    target_machines = {m:None for m in machines}
 
    # Power all the systems off to start.
 
    blurt("Powering the machines off.")
-   powered_a_machine_off = for_all_on_conn(target_machines, bmc_conns, power_action, "Off")
+   powered_a_machine_off = for_all_with_conn(target_machines, bmc_conns, power_action, "Off")
    if powered_a_machine_off:
       blurt("Pausing a bit to allow the iDRACs to finish power-off.")
-      time.sleep(10)  # Gross
+      time.sleep(15)  # Really gross.  Gotta find a way to know when the machine is really off.
+
    # Now submit the task requests
 
-   blurt("Submitting disk-initializaiton task requests.")
+   blurt("Submitting %s task requests." % short_task_name)
 
    options = dict()
    options["InitializeType"] = "Fast"
 
-   for_all_on_conn(target_machines, bmc_conns, submit_task, action_targets, options, task_ids)
+   for_all_with_conn(target_machines, bmc_conns,
+                    submit_task, short_task_name, action_targets, options, task_ids)
 
    blurt("Pausing a bit to allow the iDRACs to catch up.")
-   time.sleep(10)  # Gross
+   time.sleep(15)  # More gross.
 
    # Now power on the machines to get them to run the tasks.
 
    blurt("Powering the machines on.")
-   powered_a_machine_on= for_all_on_conn(target_machines, bmc_conns, power_action, "On")
+   powered_a_machine_on= for_all_with_conn(target_machines, bmc_conns, power_action, "On")
 
-   print("Waiting for submmitted virtual-disk initialize tasks to complete.")
+   print("Waiting for submmitted %s tasks to complete." % short_task_name)
    pending_task_ids = {m:task_ids[m] for m in target_machines}
 
    while pending_task_ids:
-      for_all_on_conn(pending_task_ids, bmc_conns, check_task_status,
-                      ending_task_ress)
+      for_all_with_conn(pending_task_ids, bmc_conns, check_task_status,
+                       ending_task_ress)
       if len(pending_task_ids) > 0:
          time.sleep(15)
    #
@@ -259,7 +174,7 @@ def main():
    time.sleep(10)  # Gross
 
    # Power off all of the systems we haven't already abandoned.
-   powered_a_machine_on= for_all_on_conn(target_machines, bmc_conns, power_action, "Off")
+   powered_a_machine_on= for_all_with_conn(target_machines, bmc_conns, power_action, "Off")
 
    blurt("Finished.")
 
@@ -273,6 +188,10 @@ if __name__ == "__main__":
       traceback.print_exc()
       die("Unhandled exception!")
 
+
+# For reference.  An example of iDRAC is not ready error we sometimes git and haven't
+# yet figured out a robust set of required-state checks etc. to avoid.
+#
 #{
 #   "error": {
 #      "@Message.ExtendedInfo": [
