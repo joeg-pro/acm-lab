@@ -100,8 +100,17 @@ resource vsphere_virtual_machine vm {
   firmware              = data.vsphere_virtual_machine.template.firmware
   scsi_type             = data.vsphere_virtual_machine.template.scsi_type
   scsi_bus_sharing      = data.vsphere_virtual_machine.template.scsi_bus_sharing
+  hv_mode               = data.vsphere_virtual_machine.template.hv_mode
+  vvtd_enabled          = data.vsphere_virtual_machine.template.vvtd_enabled
+  ept_rvi_mode          = data.vsphere_virtual_machine.template.ept_rvi_mode
+  nested_hv_enabled     = data.vsphere_virtual_machine.template.nested_hv_enabled
+  latency_sensitivity   = data.vsphere_virtual_machine.template.latency_sensitivity
+  enable_logging        = data.vsphere_virtual_machine.template.enable_logging
+  swap_placement_policy = data.vsphere_virtual_machine.template.swap_placement_policy
 
-  enable_disk_uuid = true
+  cpu_performance_counters_enabled = data.vsphere_virtual_machine.template.cpu_performance_counters_enabled
+
+  enable_disk_uuid = true  # Bug? Why do we set to true vs. copy from template?
 
   wait_for_guest_net_timeout  = 0
   wait_for_guest_net_routable = false
