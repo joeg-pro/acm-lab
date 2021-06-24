@@ -1,9 +1,12 @@
 #!/bin/bash
 
+# Does some pre-checks to catch common OCP install setup errors.
+
 # Informal.  WIP.
 #
 # Needs:
 # - Python 3
+# - yq
 
 me=$(basename $0)
 my_dir=$(dirname $(readlink -f $0))
@@ -45,23 +48,48 @@ echo "GAP hostname: $gap_host_name"
 gap_ip=$(gethostbyname "$gap_host_name")
 echo "GAP private IP address: $gap_ip"
 
-# Check for required DNS entries, and that both point to the same thing.
-# Would like to verify that they point to the GAP VM, but we can't determine
-# the GAP VM external IP address by looking at install-config.yaml.
+# Check that we can get to the GAP VM, and while there figure
+# out what its external IP address is (ens160 interface).
+
+ip_addr_show_resp=$(ssh "$user_at_host" "ip addr show ens160")
+if [[ $? -ne 0 ]]; then
+   >&2 echo "Error: Can't get to GAP VM as $user_at_host." 
+fi
+ext_ip_and_mask=$(echo "$ip_addr_show_resp" | grep " inet " | awk '{print $2}')
+gap_ext_ip=${ext_ip_and_mask%/*}
+echo "GAP external IP address: $gap_ext_ip"
+
+# Check for required DNS entries, and that both point to the GAP's external address.
 
 echo "Checking DNS entries."
 
 api_ip=$(gethostbyname "api.$full_cluster_name")
 if [[ -z "$api_ip" ]]; then
-   >^2 echo "Error:  Can't resolve api.$full_cluster_name."
+   >&2 echo "Error:  Can't resolve api.$full_cluster_name."
+else
+   if [[ "$api_ip" == "$gap_ext_ip" ]]; then
+      echo "Ok, api.<cluster> resolves to GAP external ip address."
+   else
+      >&2 echo "Error: api.<cluster> does not resolve to GAP external ip address."
+      >&2 echo "       It resolve to $api_ip rather than $gap_ext_ip."
+   fi
 fi
-echo "api.<cluster> resolves to: $api_ip"
 
 ingress_ip=$(gethostbyname "test.apps.$full_cluster_name")
-if [[ -z "$api_ip" ]]; then
-   >^2 echo "Error:  Can't resolve *.apps.$full_cluster_name."
+if [[ -z "$ingress_ip" ]]; then
+   >&2 echo "Error:  Can't resolve *.apps.$full_cluster_name."
+else
+   if [[ "$ingress_ip" == "$gap_ext_ip" ]]; then
+      echo "Ok, *.apps.<cluster> resolves to GAP external ip address."
+   else
+      >&2 echo "Error: *.apps.<cluster> does not resolve to GAP external ip address."
+      >&2 echo "       It resolve to $ingress_ip rather than $gap_ext_ip."
+   fi
 fi
-echo "*.apps.<cluster> reference resolves to: $ingress_ip"
+
+# Display nested-virt status.
+
+ssh "$user_at_host" "sudo /root/base-setup/gap/bmp/check-nested-virt-is-enabled.sh"
 
 tmp_dir=$(mktemp -dt "$me.XXXXXXXX")
 
@@ -98,9 +126,6 @@ for host_name in $host_names; do
    else
       echo "Ok."
    fi
-
 done
 
 rm -rf $tmp_dir
-
-
