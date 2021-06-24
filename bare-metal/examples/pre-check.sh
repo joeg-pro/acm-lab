@@ -91,8 +91,6 @@ fi
 
 ssh "$user_at_host" "sudo /root/base-setup/gap/bmp/check-nested-virt-is-enabled.sh"
 
-tmp_dir=$(mktemp -dt "$me.XXXXXXXX")
-
 # Get list of hosts since we're going to need to process each of them.
 
 hosts_json="$tmp_dir/hosts.json"
