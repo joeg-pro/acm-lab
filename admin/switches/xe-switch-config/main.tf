@@ -15,7 +15,7 @@ terraform {
 }
 
 provider junos {
-  alias     = "sw_10g_1"
+  alias     = "sw_xe_1"
   ip        = "acm-ex4600-10g.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
@@ -89,17 +89,17 @@ locals {
 
   vlans_for_vsphere = local.all_vlan_names
 
-  # Provided as an output for use by import.sh:
+  # Contributes to the import_info output by import.sh:
   vlan_import_info = [
     for k,v in local.all_vlans: {
-      resource = format("junos_vlan.sw_10g_1_vlan[\"%s\"]", k)
+      resource = format("junos_vlan.sw_xe_1_vlan[\"%s\"]", k)
       id = replace(k, "_", "-")
     }
   ]
 
   #--- Specify the machine-by-machine connection to the switches  ---
 
-  sw_10g_1_machines = {
+  sw_xe_1_machines = {
     mist_01 = {
       name  = "Mist01"  # Name of machine to use in description
       nics  = [1, 2]    # The ordinal of the NICs connected (parallel to ports array)
@@ -149,8 +149,8 @@ locals {
   # result is local.ports that is a map from siwthc-port (interface) names to desired config
   # values for the port.  We do this via an intermediate list to make it a bit more readable.
 
-  sw_10g_1_machine_port_configs = flatten([
-    for mn,mv in local.sw_10g_1_machines: [
+  sw_xe_1_machine_port_configs = flatten([
+    for mn,mv in local.sw_xe_1_machines: [
       for i in range(length(mv.ports)) : {
         port_name = format("xe-0/0/%s", mv.ports[i])
         description = format("%s 10G NIC %d", mv.name, mv.nics[i])
@@ -164,25 +164,27 @@ locals {
   # Each splits out to 4 10G ports designated as xe-0/0/24:0 to /24:3.
 
   # Note: As additional sub-lists are created, concat into this one.
-  sw_10g_1_port_configs = local.sw_10g_1_machine_port_configs
+  sw_xe_1_port_configs = local.sw_xe_1_machine_port_configs
 
    # For_each needs a map (or set), so make a map.
-  sw_10g_1_ports = {
-    for e in local.sw_10g_1_port_configs: e.port_name => {
+  sw_xe_1_ports = {
+    for e in local.sw_xe_1_port_configs: e.port_name => {
        description = e.description
        vlans = e.vlans
     }
   }
 
-  # Provided as an output for use by import.sh:
-  sw_10g_1_import_info = [
-    for e in local.sw_10g_1_port_configs: {
-      resource = format("junos_interface_physical.sw_10g_1_port[\"%s\"]", e.port_name)
+  # Contributes to the import_info output by import.sh:
+  sw_xe_1_import_info = [
+    for e in local.sw_xe_1_port_configs: {
+      resource = format("junos_interface_physical.sw_xe_1_port[\"%s\"]", e.port_name)
       id = e.port_name
     }
   ]
 
-  import_info = concat(local.vlan_import_info, local.sw_10g_1_import_info)
+  # Combine all import info into a single thing referenced as an ooutput.
+
+  import_info = concat(local.vlan_import_info, local.sw_xe_1_import_info)
 
 }
 
@@ -190,9 +192,9 @@ locals {
 
 # VLANs:
 
-resource junos_vlan sw_10g_1_vlan {
+resource junos_vlan sw_xe_1_vlan {
 
-  provider = junos.sw_10g_1
+  provider = junos.sw_xe_1
 
   for_each = local.all_vlan_defs
     vlan_id     = each.value.id
@@ -202,13 +204,13 @@ resource junos_vlan sw_10g_1_vlan {
 
 # Ports (Interfaces):
 
-resource junos_interface_physical sw_10g_1_port {
+resource junos_interface_physical sw_xe_1_port {
 
-  depends_on = [junos_vlan.sw_10g_1_vlan]
+  depends_on = [junos_vlan.sw_xe_1_vlan]
 
-  provider = junos.sw_10g_1
+  provider = junos.sw_xe_1
 
-  for_each = local.sw_10g_1_ports
+  for_each = local.sw_xe_1_ports
     name         = each.key
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1

@@ -4,4 +4,3 @@
 output import_info {
   value = local.import_info
 }
-
