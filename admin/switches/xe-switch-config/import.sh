@@ -19,3 +19,4 @@ while read import_line; do
    "$tf" "import"  "$resource" "$id"
 done < $tmp_import_lines
 
+rm -f "$tmp_import_lines"
