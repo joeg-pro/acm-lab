@@ -26,7 +26,7 @@ provider junos {
 }
 
 
-#--- Configuration Locals ---
+#=== Configuration Info ===
 
 locals {
 
@@ -86,15 +86,17 @@ locals {
 
 }
 
-#--- "Compile it" Locals ---
+#=== "Compile it" Locals ===
 
 locals {
 
-  #----------------------------------------------------------------------------------
+  #----------------------------------------------------------------------
+  # "Compile" slot assignment/machine-connection info into usable form.
+  #----------------------------------------------------------------------
+
   # Convert the slot-assignemnt and machine-connection info in local vars into
   # a map of maps we can for_each over within per-switch junos_physcial_interface
   # resources to define the switch port/interface configuration.
-  #----------------------------------------------------------------------------------
 
   # (We do this stepwide to assist in debugging/understanding, maybe.)
 
