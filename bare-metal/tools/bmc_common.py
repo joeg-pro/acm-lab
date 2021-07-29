@@ -2,7 +2,7 @@
 # Some common functions for interacting with a RedFish BMC.
 #
 # Ideally, this will be kept vendor-neutral, or at least be able to support the set of
-# vendor eqipment we have.  But is a goal and not likely a realiaty, as we only have
+# vendor eqipment we have.  But this is a goal and not likely a realiaty, as we only have
 # Dell stuff to test with (Dell iDRAC 9 stuff, to be more specific).
 
 # Assumes: Python 3.6+
@@ -13,22 +13,20 @@ import sys
 import time
 import urllib3
 
-from lab_common import *
+from misc_utils import *
 
 urllib3.disable_warnings()
-
-
-def now():
-   return time.time()
 
 def _get_resource_id(res):
    return res["@odata.id"]
 
-def json_dumps(thing):
-   return json.dumps(thing, indent=3, sort_keys=True)
-
 def _resp_json(resp):
    return dict() if resp.text == "" else resp.json()
+
+def dbg_echo_resource(name_line_pfx, res, level=1):
+   if get_dbg_volume_level() >= level:
+      dbg("%s \"%s\":\n%s"% (name_line_pfx, res["Name"], json_dumps(res)), level=level)
+
 
 class BMCError(Exception):
    pass
@@ -891,110 +889,4 @@ class DellBMCConnection(BMCConnection):
       # NB: Dell iDRAC's Redfish implementation only supports https connections.
       base_url = "https://%s" % hostname
       super().__init__(base_url, username, password)
-
-
-class LabBMCConnection(object):
-
-   # Notes:
-   #
-   # - This class contains an instance of a (Dell) BMC Connection object rather than
-   #   being a subclasses of it in case we have non-Dell hardware in the future and
-   #   we want this class to act as a fascade over all kinds.
-
-   @staticmethod
-   def add_bmc_login_argument_definitions(parser):
-
-      parser.add_argument("--username", "-u",  dest="login_username")
-      parser.add_argument("--password", "-p",  dest="login_password")
-      parser.add_argument("--use-default-creds", "-D",  dest="use_default_creds", action="store_true")
-      parser.add_argument("--as-admin", "-A",  dest="as_admin", action="store_true")
-      parser.add_argument("--as-root",  "-R",  dest="as_root", action="store_true")
-      parser.add_argument("--as-mgmt",  "-M",  dest="as_mgmt", action="store_true")
-
-   @staticmethod
-   def create_connection(machine_name, args, default_to_admin=False):
-
-      username = args.login_username
-      password = args.login_password
-      for_std_user = None
-      if args.use_default_creds:
-         for_std_user = "default"
-      elif args.as_root:
-         for_std_user = "root"
-      elif args.as_mgmt:
-         for_std_user = "mgmt"
-      elif args.as_admin or default_to_admin:
-         for_std_user = "admin"
-
-      if username is not None:
-         dbg("Creating connection to %s as specified user\" %s\"." % (machine_name, username), level=1)
-      elif for_std_user is not None:
-         dbg("Creating connection to %s as standard user \"%s\"." % (machine_name, for_std_user), level=1)
-      else:
-         dbg("Creating connection to %s using default standard user." % machine_name, level=1)
-
-      return LabBMCConnection(machine_name, username=username, password=password,
-                              for_std_user=for_std_user)
-
-   def __init__(self, machine_name, username=None, password=None, for_std_user=None):
-
-      if (username is not None) != (password is not None):
-         die("Both BMC login username and password are required if either is provided.")
-
-      self.machine_info = None
-      bmc_cfg = self._get_bmc_cfg(machine_name, for_std_user=for_std_user)
-
-      self.host = bmc_cfg["address"]
-      self.username = bmc_cfg["username"] if username is None else username
-      self.password = bmc_cfg["password"] if password is None else password
-      # Future: Maybe also accept username/password from env vars?
-
-      self.connection = DellBMCConnection(self.host, self.username, self.password)
-
-      # Because we're doing things by composition of rahter than subclassing from the
-      # BMCConnection class, we have to explicitly "export" the methods of the
-      # BMCConnection classs that we want to be part of our API.
-
-      self.get_resource           = self.connection.get_resource
-      self.get_collection         = self.connection.get_collection
-      self.get_collection_members = self.connection.get_collection_members
-      self.get_collection_member_ids       = self.connection.get_collection_member_ids
-      self.get_collection_member_with_name = self.connection.get_collection_member_with_name
-
-      self.get_service_root_resource   = self.connection.get_service_root_resource
-      self.get_system_resource         = self.connection.get_this_system_resource
-      self.get_system_manager_resource = self.connection.get_this_system_manager_resource
-
-      self.start_task     = self.connection.start_task
-      self.get_task       = self.connection.get_task
-      self.perform_action = self.connection.perform_action
-
-      self.get_power_state         = self.connection.get_power_state
-      self.get_system_power_state  = self.connection.get_power_state
-      self.system_power_on         = self.connection.system_power_on
-      self.system_power_off        = self.connection.system_power_off
-
-      self.get_all_accounts     = self.connection.get_all_accounts
-      self.get_account          = self.connection.get_account
-      self.create_account       = self.connection.create_account
-      self.delete_account       = self.connection.delete_account
-      self.set_account_password = self.connection.set_account_password
-
-   def _get_bmc_cfg(self, machine_name, for_std_user=None):
-
-      m_entry = None
-      bmc_cfg = {}
-      try:
-         m_entry = get_machine_entry(machine_name, for_std_user=for_std_user)
-         bmc_info = m_entry["bmc"]
-         bmc_cfg["address"]  = bmc_info["address"]
-         bmc_cfg["username"] = bmc_info["username"]
-         bmc_cfg["password"] = bmc_info["password"]
-      except KeyError:
-         if m_entry is None:
-            die("Machine %s not recored in machine info db." % machine_name)
-         else:
-            die("Machine info db not as expected (bmc data missing/wrong).")
-
-      return bmc_cfg
 

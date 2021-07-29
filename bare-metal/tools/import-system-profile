@@ -1,0 +1,119 @@
+#!/bin/python3
+#
+# Import (apply) a system configuration profile on a set of machines.
+#
+# Dell specific.
+#
+# Author: J. M. Gdaniec, Jul 2021
+
+from lab_common import *
+
+import argparse
+import time
+import traceback
+
+
+class ImportSystemProfileTask(DellSpecificTask):
+
+   def __init__(self, machine, bmc_conn, profile_contents):
+      super(ImportSystemProfileTask, self).__init__(machine, bmc_conn)
+      self.profile_contents = profile_contents
+
+   @classmethod
+   def get_short_task_name(self):
+      return "system-profile-import"
+
+   @classmethod
+   def announce_pre_launch_pass(self):
+      return
+
+   def pre_launch(self):
+
+      # Get the system-manager/BMC resource.  On Dell Servers this is the
+      # resource with path /redfish/v1/Managers/iDRAC.Embedded.1
+
+      sys_mgr_res = self.bmc_conn.get_system_manager_resource()
+      dbg_echo_resource("System manager resource", sys_mgr_res, level=9)
+
+      # Find the target we need to launch the Import System Configuration action.
+
+      oem_actions = sys_mgr_res["Actions"]["Oem"]
+      import_action = oem_actions["#OemManager.v1_2_0.OemManager#OemManager.ImportSystemConfiguration"]
+      import_target = import_action["target"]
+      dbg("Profile-import action-target: %s" % import_target)
+
+      self.task_target = import_target
+
+      return True
+
+   def get_task_target(self):
+      # Found during pre_launch()
+      return self.task_target
+
+   def get_task_body(self):
+      body = dict()
+      body["ImportBuffer"] = self.profile_contents
+      body["ShareParameters"] = dict()
+      body["ShareParameters"]["Target"] = "ALL"  # Apply all types of config in profile
+      body["ShutdownType"]   = "Forced"          # Or "Graceful" or "NoReboot"
+      body["HostPowerState"] = "On"              # Or "On"
+
+      # Anectotal observation suggests that if HostPowerState is not "On" (meaning, I think,
+      # turn the system back on anfterwards) the task never completes.
+
+      return body
+
+   @classmethod
+   def announce_post_completion_pass(self):
+      blurt("Powering all machines off.")
+      return
+
+   def post_completion(self):
+      blurt("   Powering off %s" % self.machine)
+      self.bmc_conn.system_power_off()
+
+
+def main():
+
+   set_dbg_volume_level(1)
+
+   # Args: profile_file machine1 <machine2> ....
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("profile_file")
+   parser.add_argument("machines", nargs="+")
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+
+   profile_file_path = args.profile_file
+   machines          = args.machines
+
+   # Read the system profile (XML) from the specified profile file.  We will
+   # import this profile into all of the named machines.
+
+   try:
+      with open(profile_file_path, mode="r", encoding="utf-8") as f:
+         profile_contents = f.read()
+   except FileNotFoundError:
+      emsg("System profile file %s not found." % profile_file_path)
+      exit(4)
+
+   # The doc on the Import System Profile action is kinda thin, but based on other
+   # examples found it appears that when importing using local file, the action
+   # expects the content to be a single line of XML.
+
+   profile_contents = profile_contents.replace("\n", "")
+
+   runner = TaskRunner(machines, args, ImportSystemProfileTask, profile_contents)
+   runner.run()
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+

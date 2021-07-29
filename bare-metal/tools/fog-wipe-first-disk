@@ -5,21 +5,15 @@
 # Hopefully does enough queries to verify the target machine is setup
 # as expected before doing the wiping.
 #
-# This is HIGHLY Fog-Machine-Setup specific!
+# This is HIGHLY Dell Server and Fog-Machine-Setup specific!
 
 # Author: J. M. Gdaniec, Apr 2021
 
-from bmc_common import *
-from fog_common import *
+from lab_common import *
 
 import argparse
 import time
 import traceback
-
-
-def dbg_echo_resource(name_line_pfx, res, level=1):
-   if get_dbg_volume_level() >= level:
-      dbg("%s \"%s\":\n%s"% (name_line_pfx, res["Name"], json_dumps(res)), level=level)
 
 def main():
 
