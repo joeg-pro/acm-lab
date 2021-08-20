@@ -29,7 +29,12 @@ def dbg_echo_resource(name_line_pfx, res, level=1):
 
 
 class BMCError(Exception):
-   pass
+   def __init__(self, msg=None):
+      self.message = msg
+
+   def __str__(self):
+      return self.message
+
 
 class BMCRequestError(BMCError):
 
@@ -67,10 +72,7 @@ class BMCRequestError(BMCError):
          self.message   = msg
 
       else:
-         if msg is not None:
-            self.message = msg
-         else:
-            self.message = "An unknown error occurred."
+         self.message = "An unknown error occurred."
 
    def __str__(self):
       if self.status is None:

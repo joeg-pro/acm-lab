@@ -23,11 +23,7 @@ class ImportSystemProfileTask(DellSpecificTask):
    def get_short_task_name(self):
       return "system-profile-import"
 
-   @classmethod
-   def announce_pre_launch_pass(self):
-      return
-
-   def pre_launch(self):
+   def pre_check(self):
 
       # Get the system-manager/BMC resource.  On Dell Servers this is the
       # resource with path /redfish/v1/Managers/iDRAC.Embedded.1
@@ -69,8 +65,7 @@ class ImportSystemProfileTask(DellSpecificTask):
       return
 
    def post_completion(self):
-      blurt("   Powering off %s" % self.machine)
-      self.bmc_conn.system_power_off()
+      return self.do_power_action("Off")
 
 
 def main():
@@ -105,7 +100,8 @@ def main():
 
    profile_contents = profile_contents.replace("\n", "")
 
-   runner = TaskRunner(machines, args, ImportSystemProfileTask, profile_contents)
+   runner = TaskRunner(machines, args, ImportSystemProfileTask,
+                       task_arg=profile_contents, default_to_admin=True)
    runner.run()
 
 if __name__ == "__main__":
