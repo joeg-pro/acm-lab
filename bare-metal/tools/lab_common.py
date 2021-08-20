@@ -9,74 +9,119 @@ import sys
 import os
 import yaml
 
-# Some message-emitting utilities.
-
-dbg_volume_level = 0
-
-def set_dbg_volume_level(lvl):
-   global dbg_volume_level
-   dbg_volume_level = lvl
-
-def get_dbg_volume_level():
-   return dbg_volume_level
-
-def eprint(*args, **kwargs):
-   print(*args, file=sys.stderr, **kwargs)
-
-def emsg(msg, *args):
-   eprint("Error: " + msg, *args)
-
-def wmsg(msg, *args):
-   eprint("Warning: " + msg, *args)
-
-def nmsg(msg, *args):
-   eprint("Note: " + msg, *args)
-
-def blurt(*args, **kwargs):
-   print(*args, **kwargs)
-
-def die(msg, *args):
-   eprint("Error: " + msg, *args)
-   eprint("Aborting.")
-   exit(2)
-
-def dbg(msg, *args, level=1):
-   if level <= dbg_volume_level:
-      eprint("DBG: " + msg, *args)
+from misc_utils import *
+from bmc_common import *
 
 
-def json_dumps(a_dict):
-   return json.dumps(a_dict, indent=3, sort_keys=True)
+# --- Lab-tailored BMC Classes ---
 
+class LabBMCConnection(object):
 
-# Some strang manipulation utils
+   # Notes:
+   #
+   # - This class contains an instance of a (Dell) BMC Connection object rather than
+   #   being a subclasses of it in case we have non-Dell hardware in the future and
+   #   we want this class to act as a fascade over all kinds.
 
-def remove_trailing(s, ending):
-   return s[:-len(ending)] if s.endswith(ending) else s
+   @staticmethod
+   def add_bmc_login_argument_definitions(parser):
 
-# Split a string into left and right parts based on the first occurrence of a
-# delimiter encountered when scanning left to right. If the delimiter isn't
-# found, the favor_right argument determines if the string is considered to
-# be all right of the delimiter or all left of it.
+      parser.add_argument("--username", "-u",  dest="login_username")
+      parser.add_argument("--password", "-p",  dest="login_password")
+      parser.add_argument("--use-default-creds", "-D",  dest="use_default_creds", action="store_true")
+      parser.add_argument("--as-admin", "-A",  dest="as_admin", action="store_true")
+      parser.add_argument("--as-root",  "-R",  dest="as_root", action="store_true")
+      parser.add_argument("--as-mgmt",  "-M",  dest="as_mgmt", action="store_true")
 
-def split_at(the_str, the_delim, favor_right=True):
+   @staticmethod
+   def create_connection(machine_name, args, default_to_admin=False):
 
-   split_pos = the_str.find(the_delim)
-   if split_pos > 0:
-      left_part  = the_str[0:split_pos]
-      right_part = the_str[split_pos+1:]
-   else:
-      if favor_right:
-         left_part  = None
-         right_part = the_str
+      username = args.login_username
+      password = args.login_password
+      for_std_user = None
+      if args.use_default_creds:
+         for_std_user = "default"
+      elif args.as_root:
+         for_std_user = "root"
+      elif args.as_mgmt:
+         for_std_user = "mgmt"
+      elif args.as_admin or default_to_admin:
+         for_std_user = "admin"
+
+      if username is not None:
+         dbg("Creating connection to %s as specified user\" %s\"." % (machine_name, username), level=1)
+      elif for_std_user is not None:
+         dbg("Creating connection to %s as standard user \"%s\"." % (machine_name, for_std_user), level=1)
       else:
-         left_part  = the_str
-         right_part = None
+         dbg("Creating connection to %s using default standard user." % machine_name, level=1)
 
-   return (left_part, right_part)
+      return LabBMCConnection(machine_name, username=username, password=password,
+                              for_std_user=for_std_user)
+
+   def __init__(self, machine_name, username=None, password=None, for_std_user=None):
+
+      if (username is not None) != (password is not None):
+         die("Both BMC login username and password are required if either is provided.")
+
+      self.machine_info = None
+      bmc_cfg = self._get_bmc_cfg(machine_name, for_std_user=for_std_user)
+
+      self.host = bmc_cfg["address"]
+      self.username = bmc_cfg["username"] if username is None else username
+      self.password = bmc_cfg["password"] if password is None else password
+      # Future: Maybe also accept username/password from env vars?
+
+      self.connection = DellBMCConnection(self.host, self.username, self.password)
+
+      # Because we're doing things by composition of rahter than subclassing from the
+      # BMCConnection class, we have to explicitly "export" the methods of the
+      # BMCConnection classs that we want to be part of our API.
+
+      self.get_resource           = self.connection.get_resource
+      self.get_collection         = self.connection.get_collection
+      self.get_collection_members = self.connection.get_collection_members
+      self.get_collection_member_ids       = self.connection.get_collection_member_ids
+      self.get_collection_member_with_name = self.connection.get_collection_member_with_name
+
+      self.get_service_root_resource   = self.connection.get_service_root_resource
+      self.get_system_resource         = self.connection.get_this_system_resource
+      self.get_system_manager_resource = self.connection.get_this_system_manager_resource
+
+      self.start_task     = self.connection.start_task
+      self.get_task       = self.connection.get_task
+      self.perform_action = self.connection.perform_action
+
+      self.get_power_state         = self.connection.get_power_state
+      self.get_system_power_state  = self.connection.get_power_state
+      self.system_power_on         = self.connection.system_power_on
+      self.system_power_off        = self.connection.system_power_off
+
+      self.get_all_accounts     = self.connection.get_all_accounts
+      self.get_account          = self.connection.get_account
+      self.create_account       = self.connection.create_account
+      self.delete_account       = self.connection.delete_account
+      self.set_account_password = self.connection.set_account_password
+
+   def _get_bmc_cfg(self, machine_name, for_std_user=None):
+
+      m_entry = None
+      bmc_cfg = {}
+      try:
+         m_entry = get_machine_entry(machine_name, for_std_user=for_std_user)
+         bmc_info = m_entry["bmc"]
+         bmc_cfg["address"]  = bmc_info["address"]
+         bmc_cfg["username"] = bmc_info["username"]
+         bmc_cfg["password"] = bmc_info["password"]
+      except KeyError:
+         if m_entry is None:
+            die("Machine %s not recored in machine info db." % machine_name)
+         else:
+            die("Machine info db not as expected (bmc data missing/wrong).")
+
+      return bmc_cfg
 
 
-# Return entry from our lab machine info "database" (yaml file).
+# --- Getting info from our lab machine-info database (yaml file) ---
 
 machine_info = None
 
@@ -165,4 +210,281 @@ def get_machine_entry(machine_name, for_std_user=None):
    except KeyError:
       die("Machine %s not recored in machine info db." % machine_name)
    #
+#
 
+
+# -- Iterating across a bunch of machines to do the same thing ---
+
+# Task orchestrator that runs running a given task/job across a set of machines.
+# Task particulars are specified via a passed task-customization class.
+
+class TaskRunner:
+
+   def __init__(self, machines, connection_args, the_task_class,
+                task_arg=None, default_to_admin=False):
+
+      self.machines         = machines
+      self.connection_args  = connection_args
+      self.the_task_class   = the_task_class
+      self.task_arg         = task_arg
+      self.default_to_admin = default_to_admin
+
+      self.tasks = dict()
+
+   def run(self):
+
+      # Open BMC connections to each of the machines and do quick pre-checks.
+      # If pre-checks fail for any machine, we abort the whole thing.
+
+      errors_occurred = False
+      for machine in self.machines:
+
+         blurt("Opening BMC connectino with %s and doing verification." % machine)
+
+         bmc_conn = LabBMCConnection.create_connection(machine, self.connection_args,
+                                                       default_to_admin=self.default_to_admin)
+         this_task = self.the_task_class(machine, bmc_conn, self.task_arg)
+
+         if this_task.pre_check():
+            self.tasks[machine] = this_task
+         else:
+            errors_occurred = True
+      #
+      if errors_occurred:
+         blurt("Aborting because one or more machines failed verification checks.")
+         return
+
+      # Perform pre-submit pass, intnedned to get every machine into whatever
+      # pre-task-submit state is required if more than power control is needed.
+
+      self.the_task_class.announce_pre_submit_pass()
+      pause_after_pass = False
+      for machine in list(self.tasks.keys()):
+         task = self.tasks[machine]
+         try:
+            pause_after_pass = task.pre_submit() or pause_after_pass
+         except BMCError as exc:
+            emsg(str(exc))
+            blurt("Abandoning futher action for %s due to preceeding errors." % machine)
+            del self.tasks[machine]
+      #
+      if not self.tasks:
+         blurt("No machines successfully estbalished pre-submit conditions.")
+         return
+
+      if pause_after_pass:
+         blurt("Pausing a bit to allow the iDRACs to catch up.")
+         time.sleep(15)  # Really gross.
+
+      # Submit the task requests
+
+      short_task_name = self.the_task_class.get_short_task_name()
+      blurt("Submitting %s task requests." % short_task_name)
+
+      for machine in list(self.tasks.keys()):
+         task = self.tasks[machine]
+         bmc_conn = task.get_bmc_conn()
+
+         try:
+            blurt("   Submitting task on %s." % machine)
+
+            task_target = task.get_task_target()
+            task_body   = task.get_task_body()
+
+            task_id = bmc_conn.start_task(task_target, task_body)
+            dbg("Task id: %s" % task_id)
+            task.set_task_id(task_id)
+
+         except BMCRequestError as exc:
+            emsg("Request error from %s: %s" % (machine, exc))
+            reason = "Could not submit %s task" % short_task_name
+            blurt("Abaonding further action for %s: %s." % (machine, reason))
+            del self.tasks[machine]
+      #
+
+      if not self.tasks:
+         blurt("No %s tasks were successfully started." % short_task_name)
+         return
+
+      blurt("Pausing a bit to allow the iDRACs to catch up.")
+      time.sleep(15)  # Really gross.
+
+      # Perform post-submit pass, intnedned to niudge every machine in whatever
+      # way needed to get them to run the pending tasks, for example powering them on.
+
+      self.the_task_class.announce_post_submit_pass()
+      pause_after_pass = False
+      for machine in list(self.tasks.keys()):
+         task = self.tasks[machine]
+         try:
+            pause_after_pass = task.post_submit() or pause_after_pass
+         except BMCError as exc:
+            emsg(str(exc))
+            blurt("Abandoning futher action for %s due to preceeding errors." % machine)
+            del self.tasks[machine]
+      #
+      if not self.tasks:
+         blurt("No machines successfully estbalished pre-submit conditions.")
+         return
+
+      if pause_after_pass:
+         blurt("Pausing a bit to allow the iDRACs to catch up.")
+         time.sleep(15)  # Really gross.
+
+      # Wait until the tasks complete or fail on all of the machines.
+
+      print("Waiting for submmitted %s tasks to complete." % short_task_name)
+      pending_tasks = {m:t for m, t in self.tasks.items()}
+
+      while pending_tasks:
+         for machine in list(pending_tasks.keys()):
+            task = pending_tasks[machine]
+            bmc_conn = task.get_bmc_conn()
+            task_id  = task.get_task_id()
+
+            try:
+               task_res = bmc_conn.get_task(task_id)
+               if task_has_ended(task_res):
+                  blurt("Task for system %s has ended." % task.machine)
+                  del pending_tasks[machine]
+                  task.ending_task_res = task_res ## Should use a setter ##
+               else:
+                  task_state = task_res["TaskState"]
+                  if task_state == "Starting":
+                     # On Dell iDRAC, it seems tasks remaining in Starting while the system is
+                     # going through its power-on initialization.  Then the task transitions
+                     # to running when LC has control.
+                     blurt("System %s is still starting up." % machine)
+                  else:
+                     tasK_pct_complete = task_res["PercentComplete"]
+                     blurt("Task for system %s still in progress: %s (%d%% complete)." %
+                           (machine, task_state, tasK_pct_complete))
+
+            except BMCRequestError as exc:
+               emsg("BMC request error from %s: %s" % (machine, exc))
+               del pending_tasks[machine]
+               task.ending_task_res = None
+               blurt("Abaonding further action for %s: %s." % (machine, reason))
+               del self.tasks[machine]
+         #
+         if len(pending_tasks) > 0:
+            time.sleep(15)
+      #
+
+      # All tasks have ended.  Report on completion.
+
+      for machine in list(self.tasks.keys()):
+         task = self.tasks[machine]
+         task_res = task.ending_task_res
+
+         if task_res is not None:
+            task_status = task_res["TaskStatus"]
+            task_state = task_res["TaskState"]
+            if task_status == "OK":
+               blurt("Task %s for %s has comopleted successfully." % (short_task_name, machine))
+            else:
+               blurt("Task %s for %s has failed.  Ending tatus/state: %s/%s" %
+                     (short_task_name, machine, task_status, task_state))
+         else:
+            blurt("Task %s state for %s is unknown due to previous errors." % (short_task_name, machine))
+      #
+
+      # Perform post-completion pass, intnedned to get every machine into whatever post-
+      # completion state is desired, such as powering off again if the task needed to
+      # leave the machine powered on.
+
+      self.the_task_class.announce_post_completion_pass()
+      for machine in list(self.tasks.keys()):
+         task = self.tasks[machine]
+         task.post_completion()
+      #
+
+      blurt("Finished.")
+
+
+class RunnableTask:
+
+   def __init__(self, machine, bmc_conn, task_arg=None):
+
+      self.machine  = machine
+      self.bmc_conn = bmc_conn
+
+      self.task_target = None
+      self.task_body   = None
+
+   def get_bmc_conn(self):
+      return self.bmc_conn
+
+   def set_task_id(self, task_id):
+      self.task_id = task_id
+
+   def get_task_id(self):
+      return self.task_id
+
+   def pre_check(self):
+      return True
+
+   @classmethod
+   def announce_pre_submit_pass(self):
+      return
+
+   def pre_submit(self):
+      return False  # Didn't do anothing, so no BMC-catch-up pausing needed.
+
+   @classmethod
+   def announce_post_submit_pass(self):
+      return
+
+   def post_submit(self):
+      return False  # Didn't do anothing, so no BMC-catch-up pausing needed.
+
+   @classmethod
+   def announce_post_completion_pass(self):
+      return
+
+   def post_completion(self):
+      return
+
+   def do_power_action(self, desired_power_state):
+
+      machine = self.machine
+      bmc_conn = self.bmc_conn
+
+      did_something = False
+      try:
+         current_power_state = bmc_conn.get_power_state()
+         dbg("Server %s power state: %s" % (machine, current_power_state))
+         if current_power_state != desired_power_state:
+            print("   Powering %s %s." % (machine, desired_power_state))
+            if desired_power_state == "Off":
+               bmc_conn.system_power_off()
+            else:
+               bmc_conn.system_power_on()
+            did_something = True
+         else:
+            print("   System %s was already Powered %s." % (machine, desired_power_state))
+
+      except BMCRequestError as exc:
+         m = "Could not check/control power for machine  %s: %s" % (machine, exc)
+         raise BMCError(m)
+
+class DellSpecificTask(RunnableTask):
+
+   def __init__(self, machine, bmc_conn, task_arg=None):
+      super(DellSpecificTask, self).__init__(machine, bmc_conn, task_arg)
+
+   def verify_vendor_is_dell(self):
+
+      # Make sure we're managing a Dell server because our actions make
+      # use of Dell-specific resources/actions.
+
+      service_root_res = self.bmc_conn.get_service_root_resource()
+      vendor = service_root_res["Vendor"]
+      if vendor != "Dell":
+         emsg("Machine %s is not a Dell server." % self.machine)
+         return False
+      return True
+
+   def pre_check(self):
+     return self.verify_vendor_is_dell()
+#

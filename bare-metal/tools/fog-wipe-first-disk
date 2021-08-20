@@ -5,49 +5,33 @@
 # Hopefully does enough queries to verify the target machine is setup
 # as expected before doing the wiping.
 #
-# This is HIGHLY Fog-Machine-Setup specific!
+# This is HIGHLY Dell Server and Fog-Machine-Setup specific!
 
 # Author: J. M. Gdaniec, Apr 2021
 
-from bmc_common import *
-from fog_common import *
+from lab_common import *
 
 import argparse
 import time
 import traceback
 
 
-def dbg_echo_resource(name_line_pfx, res, level=1):
-   if get_dbg_volume_level() >= level:
-      dbg("%s \"%s\":\n%s"% (name_line_pfx, res["Name"], json_dumps(res)), level=level)
+class WipeDiskTask(DellSpecificTask):
 
-def main():
+   def __init__(self, machine, bmc_conn, task_arg):
+      super(WipeDiskTask, self).__init__(machine, bmc_conn)
 
-   # set_dbg_volume_level(5)
+      self.abandon = False
 
-   parser = argparse.ArgumentParser()
-   parser.add_argument("machines", nargs="+")
-   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+   @classmethod
+   def get_short_task_name(self):
+      return "virtual-disk-init"
 
-   args = parser.parse_args()
+   def pre_check(self):
+      if not super(WipeDiskTask, self).pre_check():
+         return False
 
-   machines  = args.machines
-
-   bmc_conns = dict()
-   action_targets = dict()
-   task_ids = dict()
-   ending_task_ress = dict()
-
-   set_dbg_volume_level(0)
-
-   # Open BMC connections to each of the machines and do pre-checks.
-
-   for machine in machines:
-
-      blurt("Opening BMC connectino with %s and doing pre-checking." % machine)
-
-      bmc_conn = LabBMCConnection.create_connection(machine, args)
-      bmc_conns[machine] = bmc_conn
+      bmc_conn = self.bmc_conn
 
       system_res = bmc_conn.get_system_resource()
 
@@ -76,7 +60,8 @@ def main():
       stg_controller = target_stg_res["StorageControllers"][0]
       ctrl_model = stg_controller["Model"]
       if ctrl_model not in expected_stg_ctrl_models:
-         die("Storage controller model \"%s\" is not as expected." % ctrl_model)
+         emsg("Storage controller model \"%s\" is not as expected." % ctrl_model)
+         return False
 
       # Find the volume with the expected volume name.
 
@@ -85,6 +70,9 @@ def main():
       dbg_echo_resource("Volume Resource", target_vol_res, level=5)
 
       # Bail out if there already some operation in-progress on the volume.
+      # Note:  I found this algorithm in one of the Dell examples, but I've yet to see
+      # it find an in-progress operation, even when there was one.  So it may be baseed
+      # on legacy behavior, or never-implemented behavior.
 
       in_prog_operations = target_vol_res["Operations"]
       dbg("Volume operations:\n%s" % json_dumps(in_prog_operations), level=5)
@@ -96,88 +84,68 @@ def main():
             op_pct_complete = in_prog_op["PercentageComplete"]
             emsg("In progress operation: %s (%s percent complete)" % (op_name, op_pct_complete))
             pass
-         die("Aborting wipe-disk request.")
+         return False
 
       # We should find a #Volume.Initialize" Action.  That's what we'll run.
 
       init_action = target_vol_res["Actions"]["#Volume.Initialize"]
       init_target = init_action["target"]
-
       dbg("Action target: %s" % init_target)
-      action_targets[machine] = init_target
-   #
+      self.task_target = init_target
 
-   # All is ok across the machines, so lets get them all working on disk-init.
+      return True
 
-   short_task_name = "virtual-disk-init"
-   blurt("Starting %s across all of the machines." % short_task_name)
+   def get_task_body(self):
+      body = dict()
+      body["InitializeType"] = "Fast"
+      return body
 
-   target_machines = {m:None for m in machines}
+   # Pre-submit, post-submit and post-completion handles that power the machine
+   # machine off before submit, then power it on after submit to allow the task
+   # to run, and then finallly power the machine offf again when done.
 
-   # Power all the systems off to start.
+   @classmethod
+   def announce_pre_submit_pass(self):
+      blurt("Powering the machines off.")
 
-   blurt("Powering the machines off.")
-   powered_a_machine_off = for_all_with_conn(target_machines, bmc_conns, power_action, "Off")
-   if powered_a_machine_off:
-      blurt("Pausing a bit to allow the iDRACs to finish power-off.")
-      time.sleep(15)  # Really gross.  Gotta find a way to know when the machine is really off.
+   def pre_submit(self):
+      return self.do_power_action("Off")
 
-   # Now submit the task requests
+   @classmethod
+   def announce_post_submit_pass(self):
+      blurt("Powering the machines on.")
 
-   blurt("Submitting %s task requests." % short_task_name)
+   def post_submit(self):
+      return self.do_power_action("On")
 
-   options = dict()
-   options["InitializeType"] = "Fast"
+   @classmethod
+   def announce_post_completion_pass(self):
+      blurt("Powering all machines off.")
+      return
 
-   for_all_with_conn(target_machines, bmc_conns,
-                    submit_task, short_task_name, action_targets, options, task_ids)
+   def post_completion(self):
+      return self.do_power_action("Off")
 
-   blurt("Pausing a bit to allow the iDRACs to catch up.")
-   time.sleep(15)  # More gross.
+   def get_task_target(self):
+      # Task target found/set during pre_check() or pre_launch()
+      return self.task_target
 
-   # Now power on the machines to get them to run the tasks.
 
-   blurt("Powering the machines on.")
-   powered_a_machine_on= for_all_with_conn(target_machines, bmc_conns, power_action, "On")
+def main():
 
-   print("Waiting for submmitted %s tasks to complete." % short_task_name)
-   pending_task_ids = {m:task_ids[m] for m in target_machines}
+   # set_dbg_volume_level(0)
 
-   while pending_task_ids:
-      for_all_with_conn(pending_task_ids, bmc_conns, check_task_status,
-                       ending_task_ress)
-      if len(pending_task_ids) > 0:
-         time.sleep(15)
-   #
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machines", nargs="+")
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
 
-   # All tasks have ended.  Report on completion.
+   args     = parser.parse_args()
+   machines = args.machines
 
-   for machine in task_ids:
+   runner = TaskRunner(machines, args, WipeDiskTask, None)
+   runner.run()
 
-      bmc_conn = bmc_conns[machine]
-      task_id  = task_ids[machine]
-      task_res = ending_task_ress[machine]
-
-      if task_res is not None:
-         task_status = task_res["TaskStatus"]
-         task_state = task_res["TaskState"]
-         if task_status == "OK":
-            blurt("Disk-iitialization for %s has comopleted successfully." % machine)
-         else:
-            blurt("Disk initialization for %s has failed.  Ending tatus/state: %s/%s" %
-                  (machine, task_status, task_state))
-      else:
-         blurt("Disk initialize state for %s is unknown due to previous errors." % machine)
-   #
-
-   blurt("Pausing a bit to allow the system iDRACs to catch up.")
-   time.sleep(10)  # Gross
-
-   # Power off all of the systems we haven't already abandoned.
-   powered_a_machine_on= for_all_with_conn(target_machines, bmc_conns, power_action, "Off")
-
-   blurt("Finished.")
-
+   exit(0)
 
 if __name__ == "__main__":
    try:
