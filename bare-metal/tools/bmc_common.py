@@ -466,8 +466,8 @@ class BMCConnection(object):
       coll = self.do_get(coll_id, query_parms=query_parm)
       return coll
 
-   def get_collection(self, coll_id):
-      return self._get_collection(coll_id)
+   def get_collection(self, coll_id, expand=0):
+      return self._get_collection(coll_id, expand)
 
    def _get_collection_member_ids(self, coll_id):
       coll = self._get_collection(coll_id)

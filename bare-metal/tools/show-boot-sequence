@@ -1,0 +1,69 @@
+#!/bin/python3
+
+# Displays a system's current boot sequence.
+#
+# Should be vendor agnostic (uses on standard Redfish resources).
+#
+# Author: J. M. Gdaniec, Aug 2021
+
+from lab_common import *
+
+import argparse
+import traceback
+
+def main():
+
+   # set_dbg_volume_level(5)
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machine" )
+   parser.add_argument("--details", "-d",  dest="show_details", action="store_true")
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+   machine = args.machine
+   show_details = args.show_details
+
+   bmc_conn = LabBMCConnection.create_connection(machine, args)
+
+   # Figure out the vendor that made this system in case we want to do
+   # some conditional vendor-specific stuf.
+
+   # service_root_res = bmc_conn.get_service_root_resource()
+   # vendor = service_root_res["Vendor"]
+
+   system_res = bmc_conn.get_system_resource()
+   boot_props = system_res["Boot"]
+   boot_opts_coll_id = boot_props["BootOptions"]["@odata.id"]
+   boot_order = boot_props["BootOrder"]
+
+   # Retrieve the boot-options collection and then index them by id for
+   # easy referencewhen displaying the boot order.
+
+   boot_options_coll = bmc_conn.get_collection(boot_opts_coll_id, expand=1)
+   boot_opts_info = boot_options_coll["Members"]
+   boot_opts = {e["Id"] : e for e in boot_opts_info}
+
+   blurt("Current boot sequence for %s (*=enabled):" % machine)
+
+   ix = 0
+   for ident in boot_order:
+      boot_opt = boot_opts[ident]
+      display_name = boot_opt["DisplayName"]
+      enabled = boot_opt["BootOptionEnabled"]
+      uefi_dev_path = boot_opt["UefiDevicePath"]
+      enabled_flag = "*" if enabled else " "
+      details = " [%s]" % uefi_dev_path if show_details else ""
+      blurt("%s %02d: %s%s" % (enabled_flag, ix, display_name, details))
+      ix += 1
+
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+

@@ -137,8 +137,7 @@ def get_dell_uefi_boot_seq_id_to_name_map(bmc_conn):
          uefi_boot_seq_attr = e
          break
    if uefi_boot_seq_attr == None:
-      print("Die")
-      exit(1)
+      die("Could not find UefiBootSeq attribute within BootSourcesRegistry resource.")
 
    # Now turn the UEFI boot sequence info into the map we need.
 
@@ -151,15 +150,16 @@ def get_dell_uefi_boot_seq_id_to_name_map(bmc_conn):
 
    return id_to_disp_name_map
 
-def show_dell_boot_sequence(entries, id_to_disp_name_map):
+def show_dell_boot_sequence(entries, id_to_disp_name_map, show_details):
    for e in entries:
       ix    = e["Index"]
       ident = e["Id"]
       name = e["Name"]
       enabled = e["Enabled"]
       display_name = id_to_disp_name_map[ident]["DisplayName"]
-      disabled_flag = " (disabled)" if not enabled else ""
-      print("%02d: %s [%s]%s" % (ix, display_name, name, disabled_flag))
+      enabled_flag = "*" if enabled else " "
+      details = " [%s]" % name if show_details else ""
+      blurt("%s %02d: %s%s" % (enabled_flag, ix, display_name, details))
 
 
 def main():
@@ -168,12 +168,20 @@ def main():
 
    parser = argparse.ArgumentParser()
    parser.add_argument("machine" )
+   parser.add_argument("--details", "-d",  dest="show_details", action="store_true")
    LabBMCConnection.add_bmc_login_argument_definitions(parser)
 
    args = parser.parse_args()
    machine = args.machine
+   show_details = args.show_details
 
    bmc_conn = LabBMCConnection.create_connection(machine, args)
+
+   # Figure out the vendor that made this system in case we want to do
+   # some conditional vendor-specific stuf.
+
+   # service_root_res = bmc_conn.get_service_root_resource()
+   # vendor = service_root_res["Vendor"]
 
    # Get UEFI Boot Sseq Id-to-name map that has the usable boot-entry names:
 
@@ -184,8 +192,9 @@ def main():
 
    cur_uefi_boot_seq = get_dell_boot_seq(bmc_conn)
 
-   print("Current UEFI boot sequence for %s:" % machine)
-   show_dell_boot_sequence(cur_uefi_boot_seq, uefi_boot_seq_id_to_dsip_name)
+   blurt("Current boot sequence for %s (*=enabled):" % machine)
+   show_dell_boot_sequence(cur_uefi_boot_seq, uefi_boot_seq_id_to_dsip_name, show_details)
+
 
 if __name__ == "__main__":
    try:
