@@ -1,0 +1,198 @@
+#!/bin/python3
+
+# Displays the Dell machine's UEFI boot sequence.
+#
+# Dell/iDRAC specific.
+#
+# Author: J. M. Gdaniec, Aug 2021
+
+from lab_common import *
+
+import argparse
+import traceback
+
+def get_dell_boot_seq(bmc_conn):
+
+   boot_sources = bmc_conn.get_resource("/redfish/v1/Systems/System.Embedded.1/BootSources")
+   # print(json_dumps(boot_sources))
+
+   # Example of interesting part of BootSources:
+
+   # ...
+   # "Attributes": {
+   #   "UefiBootSeq": [
+   #     {
+   #       "Enabled": true,
+   #       "Id": "BIOS.Setup.1-1#UefiBootSeq#RAID.Integrated.1-1#f1a60a11cf4311ecfd5309e802b3afc2",
+   #       "Index": 0,
+   #       "Name": "RAID.Integrated.1-1"
+   #     },
+   #     {
+   #       "Enabled": false,
+   #       "Id": "BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#f7dbc53a281f0f61e8e4c4fb27008828",
+   #       "Index": 1,
+   #       "Name": "NIC.PxeDevice.1-1"
+   #     },
+   #     ...
+   #     {
+   #       "Enabled": false,
+   #       "Id": "BIOS.Setup.1-1#UefiBootSeq#RAID.Integrated.1-1#c52af1d702358b7e27b5baa039fdafa7",
+   #       "Index": 4,
+   #       "Name": "RAID.Integrated.1-1"
+   #     },
+   #     {
+   #       "Enabled": false,
+   #       "Id": "BIOS.Setup.1-1#UefiBootSeq#RAID.Integrated.1-1#714ab77ef5fa284d8283b1185327b7b3",
+   #       "Index": 5,
+   #       "Name": "RAID.Integrated.1-1"
+   #     },
+   #     {
+   #       "Enabled": false,
+   #       "Id": "BIOS.Setup.1-1#UefiBootSeq#Unknown.Unknown.7-1#6a9c15519e7b8df035b5cac75ea9c672",
+   #       "Index": 6,
+   #       "Name": "Unknown.Unknown.7-1"
+   #     },
+   #     {
+   #       "Enabled": false,
+   #       "Id": "BIOS.Setup.1-1#UefiBootSeq#Unknown.Unknown.8-1#8541c05cfae70f8aec3fd50781b290e7",
+   #       "Index": 7,
+   #       "Name": "Unknown.Unknown.8-1"
+   #     }
+   #   ]
+   # }
+   # ...
+
+   return boot_sources["Attributes"]["UefiBootSeq"]
+
+def get_dell_uefi_boot_seq_id_to_name_map(bmc_conn):
+
+   # Get the BootSourceRegistry attriute, and transform into a map from id to
+   # display-name/name info.  We need to do this because at the moment, it appears
+   # the display-name of this registry is the only thing that has meaningful info we
+   # can use to determine what's what in the UEFI boot sequecen.
+
+   boot_sources_rgy = bmc_conn.get_resource("/redfish/v1/Systems/System.Embedded.1/BootSources/BootSourcesRegistry")
+   # print(json_dumps(boot_sources_rgy))
+
+   # Example of interesting part of BootSourcesRegistry
+
+   # ...
+   # "RegistryEntries": {
+   #   "Attributes": [
+   #     {
+   #       "AttributeName": "UefiBootSeq",
+   #       "DisplayName": "UEFI Boot Sequence",
+   #       "DisplayOrder": 0,
+   #       "Entry": [
+   #         {
+   #           "DisplayName": "Integrated RAID Controller 1: EFI RAID Disk PlaceHolder 1",
+   #           "Enabled": null,
+   #           "Id": "BIOS.Setup.1-1#UefiBootSeq#RAID.Integrated.1-1#f1a60a11cf4311ecfd5309e802b3afc2",
+   #           "Index": null,
+   #           "Name": "RAID.Integrated.1-1"
+   #         },
+   #         {
+   #           "DisplayName": "PXE Device 1: Embedded NIC 1 Port 1 Partition 1",
+   #           "Enabled": null,
+   #           "Id": "BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#f7dbc53a281f0f61e8e4c4fb27008828",
+   #           "Index": null,
+   #           "Name": "NIC.PxeDevice.1-1"
+   #         },
+   #         ...
+   #         {
+   #           "DisplayName": "Integrated RAID Controller 1: EFI RAID Disk PlaceHolder 3",
+   #           "Enabled": null,
+   #           "Index": null,
+   #           "Name": "RAID.Integrated.1-1"
+   #         },
+   #         {
+   #           "DisplayName": "Unavailable: Red Hat Enterprise Linux",
+   #           "Enabled": null,
+   #           "Id": "BIOS.Setup.1-1#UefiBootSeq#Unknown.Unknown.7-1#6a9c15519e7b8df035b5cac75ea9c672",
+   #           "Index": null,
+   #           "Name": "Unknown.Unknown.7-1"
+   #         },
+   #         {
+   #           "DisplayName": "Unavailable: ironic1",
+   #           "Enabled": null,
+   #           "Id": "BIOS.Setup.1-1#UefiBootSeq#Unknown.Unknown.8-1#8541c05cfae70f8aec3fd50781b290e7",
+   #           "Index": null,
+   #           "Name": "Unknown.Unknown.8-1"
+   #         }
+   #       ],
+   #       "HelpText": "This field controls the UEFI boot order. The first option in the list will be attempted first, and if unsuccessful, the second option will be attempted and so on. This field applies only when Boot Mode is 'UEFI'; it has no effect when Boot Mode is 'BIOS'.",
+   #       "Hidden": false,
+   #       "MenuPath": "./BootSettingsRef/UefiBootSettingsRef",
+   #       "ReadOnly": false,
+   #       "Type": "OrderedList"
+   #     }
+   #   ],
+   #   ...
+
+   # Find the UEFI Boot Sequence info within the attribute list.
+
+   uefi_boot_seq_attr = None
+   for e in boot_sources_rgy["RegistryEntries"]["Attributes"]:
+      if e["AttributeName"] == "UefiBootSeq":
+         uefi_boot_seq_attr = e
+         break
+   if uefi_boot_seq_attr == None:
+      print("Die")
+      exit(1)
+
+   # Now turn the UEFI boot sequence info into the map we need.
+
+   id_to_disp_name_map = dict()
+   for e in uefi_boot_seq_attr["Entry"]:
+      ident = e["Id"]
+      name = e["Name"]
+      display_name = e["DisplayName"]
+      id_to_disp_name_map[ident] = e
+
+   return id_to_disp_name_map
+
+def show_dell_boot_sequence(entries, id_to_disp_name_map):
+   for e in entries:
+      ix    = e["Index"]
+      ident = e["Id"]
+      name = e["Name"]
+      enabled = e["Enabled"]
+      display_name = id_to_disp_name_map[ident]["DisplayName"]
+      disabled_flag = " (disabled)" if not enabled else ""
+      print("%02d: %s [%s]%s" % (ix, display_name, name, disabled_flag))
+
+
+def main():
+
+   # set_dbg_volume_level(5)
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machine" )
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+   machine = args.machine
+
+   bmc_conn = LabBMCConnection.create_connection(machine, args)
+
+   # Get UEFI Boot Sseq Id-to-name map that has the usable boot-entry names:
+
+   uefi_boot_seq_id_to_dsip_name = get_dell_uefi_boot_seq_id_to_name_map(bmc_conn)
+
+   # Get the current BootSources BIOS setting, as this appears to be the attribute
+   # by which you can control ordering and enablement of the entries.
+
+   cur_uefi_boot_seq = get_dell_boot_seq(bmc_conn)
+
+   print("Current UEFI boot sequence for %s:" % machine)
+   show_dell_boot_sequence(cur_uefi_boot_seq, uefi_boot_seq_id_to_dsip_name)
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+
