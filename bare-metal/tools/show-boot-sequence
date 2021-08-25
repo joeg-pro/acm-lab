@@ -44,7 +44,11 @@ def main():
    boot_opts_info = boot_options_coll["Members"]
    boot_opts = {e["Id"] : e for e in boot_opts_info}
 
-   blurt("Current boot sequence for %s (*=enabled):" % machine)
+   bios_res_id = system_res["Bios"]["@odata.id"]
+   bios_res = bmc_conn.get_resource(bios_res_id)
+   boot_mode = bios_res["Attributes"]["BootMode"]
+
+   blurt("Current boot mode for %s is %s. Boot sequence is (*=enabled):" % (machine, boot_mode))
 
    ix = 0
    for ident in boot_order:
@@ -56,7 +60,6 @@ def main():
       details = " [%s]" % uefi_dev_path if show_details else ""
       blurt("%s %02d: %s%s" % (enabled_flag, ix, display_name, details))
       ix += 1
-
 
 if __name__ == "__main__":
    try:
