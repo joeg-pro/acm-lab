@@ -49,11 +49,11 @@ class LabBMCConnection(object):
          for_std_user = "admin"
 
       if username is not None:
-         dbg("Creating connection to %s as specified user\" %s\"." % (machine_name, username), level=1)
+         dbg("Creating connection to %s as specified user\" %s\"." % (machine_name, username), level=3)
       elif for_std_user is not None:
-         dbg("Creating connection to %s as standard user \"%s\"." % (machine_name, for_std_user), level=1)
+         dbg("Creating connection to %s as standard user \"%s\"." % (machine_name, for_std_user), level=3)
       else:
-         dbg("Creating connection to %s using default standard user." % machine_name, level=1)
+         dbg("Creating connection to %s using default standard user." % machine_name, level=3)
 
       return LabBMCConnection(machine_name, username=username, password=password,
                               for_std_user=for_std_user)
@@ -86,6 +86,8 @@ class LabBMCConnection(object):
       self.get_service_root_resource   = self.connection.get_service_root_resource
       self.get_system_resource         = self.connection.get_this_system_resource
       self.get_system_manager_resource = self.connection.get_this_system_manager_resource
+
+      self.update_resource_by_id       = self.connection.update_resource_by_id
 
       self.start_task     = self.connection.start_task
       self.get_task       = self.connection.get_task
@@ -215,6 +217,57 @@ def get_machine_entry(machine_name, for_std_user=None):
 
 # -- Iterating across a bunch of machines to do the same thing ---
 
+def adjust_task_resource(task_res):
+
+   # If the resource provided isn't a DMTF-compatible Task resource, try
+   # to convert the vendor-specific thing provide to such a thing. Changes
+   # are done in place.
+   #
+   # Currnetly only attempts to map a Dell Job-type task, and does so only based
+   # on observation to determine the mapping.  So this is fragile/incomplete.
+
+   if "TaskState" in task_res:
+      return  # Looks like a DMTF Task resource.
+
+   res_type = task_res["@odata.type"]
+   if not res_type.startswith("#DellJob."):
+      return # We don't recognize the resource.  Nothing we can do.
+
+   job_state = task_res["JobState"]
+   try:
+      msg = task_res["Message"]
+   except KeyError:
+      msg = "No message"
+   try:
+      msg_id = task_res["MessageId"]
+   except KeyError:
+      msg_id = "NO-MSGID"
+
+   if job_state == "Scheduled":
+      task_res["TaskState"] = "Pending"
+
+   elif job_state == "Running":
+      task_res["TaskState"] = "Running"
+
+   elif job_state == "Completed":
+
+      # It seems the only way to tell success vs. other endings is by looking at
+      # message/message id.  To be conservatine and not mask failures, we will assume
+      # the job ended with errors if we can't match up the job-id against the
+      # (seemingly open-ended) list of success messages.
+
+      task_res["TaskState"] = "Exception"
+      task_res["TaskStatus"] = "Critical"
+
+      if msg_id in ["RED001", "JCP007", "PR19"]:
+         # "Job completed successfully.", "Job successfully completed."
+         task_res["TaskState"]  = "Completed"
+         task_res["TaskStatus"] = "OK"
+   else:
+      task_res["TaskState"] = "Not-Recognized"
+      dbg("Don't know how to map Dell job at this state:\n%s" % json_dumps(task_res))
+
+
 # Task orchestrator that runs running a given task/job across a set of machines.
 # Task particulars are specified via a passed task-customization class.
 
@@ -254,6 +307,23 @@ class TaskRunner:
          blurt("Aborting because one or more machines failed verification checks.")
          return
 
+      # Give the tasks a chance to prepare input, or decline to do so, before
+      # we start any real work.
+
+      tasks_are_needed = False
+
+      for machine in list(self.tasks.keys()):
+         task = self.tasks[machine]
+         if task.prepare_task_request():
+            tasks_are_needed = True
+         else:
+            blurt("[%s] No task is necessary for this machine." % machine)
+            del self.tasks[machine]
+      #
+      if not tasks_are_needed:
+         blurt("No tasks are needed.")
+         return
+
       # Perform pre-submit pass, intnedned to get every machine into whatever
       # pre-task-submit state is required if more than power control is needed.
 
@@ -286,19 +356,22 @@ class TaskRunner:
          bmc_conn = task.get_bmc_conn()
 
          try:
-            blurt("   Submitting task on %s." % machine)
-
             task_target = task.get_task_target()
             task_body   = task.get_task_body()
 
-            task_id = bmc_conn.start_task(task_target, task_body)
-            dbg("Task id: %s" % task_id)
-            task.set_task_id(task_id)
-
+            if task_target is None:
+               reason = "No task target set"
+               blurt("[%s] Abaonding further action for machine: %s." % (machine, reason))
+               del self.tasks[machine]
+            else:
+               blurt("   Submitting task on %s." % machine)
+               task_id = bmc_conn.start_task(task_target, task_body)
+               dbg("Task id: %s" % task_id, level=3)
+               task.set_task_id(task_id)
          except BMCRequestError as exc:
-            emsg("Request error from %s: %s" % (machine, exc))
+            emsg("[%s] Request error: %s" % (machine, exc))
             reason = "Could not submit %s task" % short_task_name
-            blurt("Abaonding further action for %s: %s." % (machine, reason))
+            blurt("[%s] Abaonding further action for machine: %s." % (machine, reason))
             del self.tasks[machine]
       #
 
@@ -319,8 +392,8 @@ class TaskRunner:
          try:
             pause_after_pass = task.post_submit() or pause_after_pass
          except BMCError as exc:
-            emsg(str(exc))
-            blurt("Abandoning futher action for %s due to preceeding errors." % machine)
+            emsg("[%s] %s" % (machine, str(exc)))
+            blurt("[%s] Abandoning futher action for machine due to preceeding errors." % machine)
             del self.tasks[machine]
       #
       if not self.tasks:
@@ -344,27 +417,30 @@ class TaskRunner:
 
             try:
                task_res = bmc_conn.get_task(task_id)
+               adjust_task_resource(task_res)
                if task_has_ended(task_res):
-                  blurt("Task for system %s has ended." % task.machine)
+                  blurt("[%s] Task for machine has ended." % task.machine)
                   del pending_tasks[machine]
                   task.ending_task_res = task_res ## Should use a setter ##
                else:
                   task_state = task_res["TaskState"]
-                  if task_state == "Starting":
+                  if task_state == "Pending":
+                     blurt("[%s] Task is scheduled/pending." % machine)
+                  elif task_state == "Starting":
                      # On Dell iDRAC, it seems tasks remaining in Starting while the system is
                      # going through its power-on initialization.  Then the task transitions
                      # to running when LC has control.
-                     blurt("System %s is still starting up." % machine)
+                     blurt("[%s] Machine is still starting up." % machine)
                   else:
                      tasK_pct_complete = task_res["PercentComplete"]
-                     blurt("Task for system %s still in progress: %s (%d%% complete)." %
+                     blurt("[%s] Task still in progress: %s (%d%% complete)." %
                            (machine, task_state, tasK_pct_complete))
 
             except BMCRequestError as exc:
-               emsg("BMC request error from %s: %s" % (machine, exc))
+               emsg("[%s] BMC request error: %s" % (machine, exc))
                del pending_tasks[machine]
                task.ending_task_res = None
-               blurt("Abaonding further action for %s: %s." % (machine, reason))
+               blurt("[%s] Abaonding further action for machine: %s." % (machine, reason))
                del self.tasks[machine]
          #
          if len(pending_tasks) > 0:
@@ -380,13 +456,13 @@ class TaskRunner:
          if task_res is not None:
             task_status = task_res["TaskStatus"]
             task_state = task_res["TaskState"]
-            if task_status == "OK":
-               blurt("Task %s for %s has comopleted successfully." % (short_task_name, machine))
+            if task_state == "Completed":
+               blurt("[%s] Task %s has comopleted successfully." % (machine, short_task_name))
             else:
-               blurt("Task %s for %s has failed.  Ending tatus/state: %s/%s" %
-                     (short_task_name, machine, task_status, task_state))
+               blurt("[%s] Task %s has failed.  Ending state/status: %s/%s" %
+                     (machine, short_task_name, task_state, task_status))
          else:
-            blurt("Task %s state for %s is unknown due to previous errors." % (short_task_name, machine))
+            blurt("[%s] Task %s state is unknown due to previous errors." % (machine, short_task_name))
       #
 
       # Perform post-completion pass, intnedned to get every machine into whatever post-
@@ -424,12 +500,22 @@ class RunnableTask:
    def pre_check(self):
       return True
 
+   def prepare_task_request(self):
+      # Give task a chance to defer prep of task target or body until we need it.
+      return True
+
+   def get_task_target(self):
+      return self.task_target
+
+   def get_task_body(self):
+      return self.task_body
+
    @classmethod
    def announce_pre_submit_pass(self):
       return
 
    def pre_submit(self):
-      return False  # Didn't do anothing, so no BMC-catch-up pausing needed.
+      return False  # Didn't do anything, so no BMC-catch-up pausing needed.
 
    @classmethod
    def announce_post_submit_pass(self):
@@ -453,16 +539,16 @@ class RunnableTask:
       did_something = False
       try:
          current_power_state = bmc_conn.get_power_state()
-         dbg("Server %s power state: %s" % (machine, current_power_state))
+         dbg("[%s] Machine power state: %s" % (machine, current_power_state), level=3)
          if current_power_state != desired_power_state:
-            print("   Powering %s %s." % (machine, desired_power_state))
+            print("   [%s] Powering machine %s." % (machine, desired_power_state))
             if desired_power_state == "Off":
                bmc_conn.system_power_off()
             else:
                bmc_conn.system_power_on()
             did_something = True
          else:
-            print("   System %s was already Powered %s." % (machine, desired_power_state))
+            print("   [%s] Machine was already Powered %s." % (machine, desired_power_state))
 
       except BMCRequestError as exc:
          m = "Could not check/control power for machine  %s: %s" % (machine, exc)
