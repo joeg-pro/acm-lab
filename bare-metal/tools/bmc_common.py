@@ -64,7 +64,9 @@ class BMCRequestError(BMCError):
                extended_info = err["@Message.ExtendedInfo"]
                if isinstance(extended_info, list):
                   extended_info = extended_info[0]
-                  msg = extended_info["Message"]
+                  msg_text = extended_info["Message"]
+                  msg_id   = extended_info["MessageId"]
+                  msg = "%s [%s]" % (msg_text,msg_id)
             except KeyError:
                msg = err["message"]
          else:
@@ -94,7 +96,7 @@ class BMCRequestError(BMCError):
 _task_states_waiting = ["New", "Pending"]
 _task_states_in_prog = ["Service", "Running", "Starting", "Stopping", "Cancelling"]
 _task_states_paused  = ["Suspended"]
-_task_states_final   = ["Completed", "Cancelled",  "Exception", "Interrupted", "Killed"]
+_task_states_final   = ["Completed", "Cancelled", "Exception", "Interrupted", "Killed"]
 _task_state_normal_completion = ["Completed"]
 
 def task_is_waiting(task_res):
@@ -131,8 +133,12 @@ class BMCConnection(object):
 
       # Debug message levels for various kinds of things.
 
-      self.dbg_msg_lvl_api_summary = 1
-      self.dbg_msg_lvl_rf_requests = 6
+      self.dbg_msg_lvl_api_summary  = 3
+      self.dbg_msg_lvl_api_details  = 4
+      self.dbg_msg_lvl_rf_requests  = 6
+      self.dbg_msg_lvl_rf_ctrl_requests  = 6 # Session control requests
+      self.dbg_msg_lvl_rf_read_requests  = 6 # Resrouce GETs only
+      self.dbg_msg_lvl_rf_write_requests = 6 # PUTs, PATCHs, POSTs, DELETEs
 
       # Cache of resources we've fetched.
       self.resources = dict()
@@ -164,14 +170,15 @@ class BMCConnection(object):
 
    def _open_session(self):
 
-      dbg_msg_lvl = self.dbg_msg_lvl_rf_requests
+      dbg_msg_lvl = self.dbg_msg_lvl_rf_ctrl_requests
 
       dbg("Opening new session to BMC.", level=dbg_msg_lvl)
 
       sessions_coll_id = self._get_session_collection_path()
 
       req_body = {"UserName": self.username, "Password": self.password}
-      session_res = self.do_post(sessions_coll_id, body=req_body, unauth=True)
+      session_res = self.do_post(sessions_coll_id, body=req_body,
+                                 unauth=True, explicit_dbg_msg_level=dbg_msg_lvl)
 
       # Per info on RedFish session authentication, we may or may not get a response body back
       # from the POST, and even if we do, it won't contain the session token.  But the session id
@@ -187,14 +194,14 @@ class BMCConnection(object):
 
    def _close_open_sessions(self):
 
-      dbg_msg_level = self.dbg_msg_lvl_rf_requests
+      dbg_msg_lvl = self.dbg_msg_lvl_rf_ctrl_requests
 
       if self.session_res_id is not None:
-         dbg("Closing open BMC session %s." % self.session_res_id, level=dbg_msg_level)
+         dbg("Closing open BMC session %s." % self.session_res_id, level=dbg_msg_lvl)
          try:
-            self.do_delete(self.session_res_id)
+            self.do_delete(self.session_res_id, explicit_dbg_msg_level=dbg_msg_lvl)
          except BMCError:
-            dbg("BMC exception raised during open-session closing. Ignoring.", level=dbg_msg_level)
+            dbg("BMC exception raised during open-session closing. Ignoring.", level=dbg_msg_lvl)
 
    def _check_for_error(self, resp):
 
@@ -233,7 +240,8 @@ class BMCConnection(object):
       # msg id, not its text, we'll wait a few secs and try one more time.
 
       resp = func(*args, **kwargs)
-      if resp.status_code != 400:
+      status_code = resp.status_code
+      if status_code not in [400, 500]:
          return resp
 
       msg_id = None
@@ -242,6 +250,7 @@ class BMCConnection(object):
          err = resp_json["error"]
          extended_info = err["@Message.ExtendedInfo"][0]
          msg_id = extended_info["MessageId"]
+         msg = extended_info["Message"]
       except:
          # Oops, tripped over ourselves.  Give up retry attempt.
          return resp
@@ -251,15 +260,29 @@ class BMCConnection(object):
          dbg("Got iDRAC-not-ready error. Retrying request after pause.", level=self.dbg_msg_lvl_rf_requests)
          time.sleep(5)  # Arbitrary, but kinda recommended by corrective-action in iDRAC response.
          resp = func(*args, **kwargs)
+      elif msg_id == "IDRAC.2.3.SYS518":
+         # Error Msg: "iDRAC is currently unable to display any information because data sources are unavailable"
+         dbg("Got iDRAC-data-sources-unavailable error. Retrying request after pause.",
+             level=self.dbg_msg_lvl_rf_requests)
+         time.sleep(5)
+         resp = func(*args, **kwargs)
+         #
+      #
 
       return resp
 
-   def redfish_request(self, method, resource_path, query_parms=None, body=None, headers=None, unauth=False):
+   def redfish_request(self, method, resource_path, query_parms=None, body=None,
+                       headers=None, unauth=False, explicit_dbg_msg_level=None):
       """
       Issue an Redfish request and return the response.  JSON input/output assumed.
       """
-
-      dbg_msg_lvl = self.dbg_msg_lvl_rf_requests
+      if explicit_dbg_msg_level != None:
+         dbg_msg_lvl = explicit_dbg_msg_level
+      else:
+         if method == "GET":
+            dbg_msg_lvl = self.dbg_msg_lvl_rf_read_requests
+         else:
+            dbg_msg_lvl = self.dbg_msg_lvl_rf_write_requests
 
       # Normalize inputs.
       method = method.upper()
@@ -339,18 +362,22 @@ class BMCConnection(object):
       self.last_response = resp
       return (self._check_for_error(resp))
 
-   def do_get(self, resource_path, unauth=False, query_parms=None):
-      resp = self.redfish_request("GET", resource_path, query_parms=query_parms, unauth=unauth)
+   def do_get(self, resource_path, unauth=False, query_parms=None, explicit_dbg_msg_level=None):
+      resp = self.redfish_request("GET", resource_path, query_parms=query_parms,
+                                  unauth=unauth, explicit_dbg_msg_level=explicit_dbg_msg_level)
       return _resp_json(resp)
 
-   def do_post(self, resource_path, body=None, unauth=False):
-      return _resp_json(self.redfish_request("POST", resource_path, body=body, unauth=unauth))
+   def do_post(self, resource_path, body=None, unauth=False, explicit_dbg_msg_level=None):
+      return _resp_json(self.redfish_request("POST", resource_path, body=body,
+                                             unauth=unauth,explicit_dbg_msg_level=explicit_dbg_msg_level))
 
-   def do_patch(self, resource_path, body=None):
-      return _resp_json(self.redfish_request("PATCH", resource_path, body=body))
+   def do_patch(self, resource_path, body=None, explicit_dbg_msg_level=None):
+      return _resp_json(self.redfish_request("PATCH", resource_path,
+                                             body=body, explicit_dbg_msg_level=explicit_dbg_msg_level))
 
-   def do_delete(self, resource_path, query_parms=None):
-      resp = self.redfish_request("DELETE", resource_path, query_parms=query_parms)
+   def do_delete(self, resource_path, query_parms=None, explicit_dbg_msg_level=None):
+      resp = self.redfish_request("DELETE", resource_path, query_parms=query_parms,
+                                  explicit_dbg_msg_level=explicit_dbg_msg_level)
       return _resp_json(resp)
 
    # Cache management.
@@ -413,10 +440,26 @@ class BMCConnection(object):
 
    def get_resource(self, res_id, cacheable=True):
       """
-      Returns a reference identified by its id/path.  Will used cached value if permissted.
+      Returns a resource identified by its id/path.  Will used cached value if permissted.
       """
       dbg("Getting resource %s" % res_id, level=self.dbg_msg_lvl_api_summary)
       return self._get_resource(res_id, cacheable=cacheable)
+
+   def update_resource_by_id(self, res_id, update_body):
+      """
+      Updates a resource identified by its id/path.
+      """
+      dbg("Patching resource %s" % res_id, level=self.dbg_msg_lvl_api_summary)
+      return self._update_resource(res_id, update_body)
+
+   def update_resource(self, res, update_body):
+      """
+      Updates a specified resource.
+      """
+      res_id = res["@odata.id"]
+      dbg("Patching resource %s" % res_id, level=self.dbg_msg_lvl_api_summary)
+      return self._update_resource(res_id, update_body)
+      # Refresh resource by re-getting it??
 
    # Task (Async Action/Job) management.
 
@@ -434,7 +477,7 @@ class BMCConnection(object):
    def start_task(self, task_start_path, task_body):
       dbg("Starting task %s." % task_start_path, level=self.dbg_msg_lvl_api_summary)
       task_id = self._start_task(task_start_path, task_body)
-      dbg("Queued/in-progress task id: %s" % task_id)
+      dbg("Queued/in-progress task id: %s" % task_id, level=self.dbg_msg_lvl_api_summary)
       return task_id
 
    def get_task(self, task_id):
@@ -577,7 +620,7 @@ class BMCConnection(object):
 
       # Members is an array of objects with at least an @odata.id property.
       self.this_system_id = members[0]["@odata.id"]
-      dbg("Determined this system id: %s" % self.this_system_id, level=3)
+      dbg("Determined this system id: %s" % self.this_system_id, level=self.dbg_msg_lvl_api_details)
       return self.this_system_id
 
    def _get_this_system_resource(self, cacheable=True):
@@ -707,13 +750,13 @@ class BMCConnection(object):
 
    def get_account(self, user_name):
 
-      dbg("Getting BMC account for user \"%s\"" % user_name, level=1)
+      dbg("Getting BMC account for user \"%s\"" % user_name, level=self.dbg_msg_lvl_api_summary)
       acct_res = self._get_accounts(want_user_name=user_name)
       if acct_res is not None:
-         dbg("%s" % json_dumps(acct_res), level=3)
+         dbg("%s" % json_dumps(acct_res), level=self.dbg_msg_lvl_api_details)
          return acct_res
       else:
-         dbg("BMC account for user \"%s\" not found." % user_name, level=1)
+         dbg("BMC account for user \"%s\" not found." % user_name, level=self.dbg_msg_lvl_api_summary)
          return None
 
    def _map_role(self, role):
@@ -736,7 +779,8 @@ class BMCConnection(object):
       '''
 
       role = "none" if role is None else role
-      dbg("Creating BMC account for user \"%s\" as role %s." % (user_name, role), level=1)
+      dbg("Creating BMC account for user \"%s\" as role %s." % (user_name, role),
+          level=self.dbg_msg_lvl_api_summary)
 
       # Look through accounts to find an available slot, and at the same time
       # verify the user doesn't already exist.  THis returns either an empty account
@@ -754,7 +798,7 @@ class BMCConnection(object):
       if res_user_name == user_name:
          raise BMCRequestError(self, msg="Account \"%s\" already exists." % user_name)
 
-      dbg("Will create new account using slot at id %s" % acct_res["Id"], level=2)
+      dbg("Will create new account using slot at id %s" % acct_res["Id"], level=self.dbg_msg_lvl_api_details)
 
       res_id = _get_resource_id(acct_res)
 
@@ -775,7 +819,7 @@ class BMCConnection(object):
       if user_name == "root":
          raise BMCRequestError(self, msg="Refusing to delete account \"%s\" via automation." % user_name)
 
-      dbg("Deleting BMC account for user \"%s\".", level=1)
+      dbg("Deleting BMC account for user \"%s\".", level=self.dbg_msg_lvl_api_summary)
 
       acct_res = self.get_account(user_name)
       if acct_res is None:
@@ -804,7 +848,8 @@ class BMCConnection(object):
       '''
 
       role = "none" if role is None else role
-      dbg("Setting BMC account for user \"%s\" to have role %s." % (user_name, role), level=1)
+      dbg("Setting BMC account for user \"%s\" to have role %s." % (user_name, role),
+          level=self.dbg_msg_lvl_api_summary)
 
       res_id = _get_resource_id(acct_res)
       update_body = dict()
@@ -817,7 +862,7 @@ class BMCConnection(object):
       Set the password for the specified BMC account (user).
       '''
 
-      dbg("Setting BMC account password for user \"%s\".", level=1)
+      dbg("Setting BMC account password for user \"%s\".", level=self.dbg_msg_lvl_api_summary)
 
       acct_res = self.get_account(user_name)
       if acct_res is None:
@@ -855,8 +900,8 @@ class BMCConnection(object):
       if action_type not in supported_action_types:
          raise BMCRequestError(self, msg="Computer System doesn't support Reset action type %s" % action_type)
 
-      dbg("Resetting system (type: %s)" % action_type, level=1)
-      dbg("Action Path: %s" % action_path, level=3)
+      dbg("Resetting system (type: %s)" % action_type, level=self.dbg_msg_lvl_api_summary)
+      dbg("Action Path: %s" % action_path, level=self.dbg_msg_lvl_api_details)
 
       post_body = {"ResetType": action_type}
       resp_body = self.do_post(action_path, post_body)
@@ -866,18 +911,18 @@ class BMCConnection(object):
       # TODO: Remove system resource from cache since we've changed it.
 
    def system_power_on(self):
-      dbg("Processing system power-on request.", level=1)
+      dbg("Processing system power-on request.", level=self.dbg_msg_lvl_api_summary)
       power_state = self.get_power_state()
-      dbg("Current power state: %s" % power_state, level=2)
+      dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
       if power_state.lower() != "on":
          self._do_system_reset_action("On")
       else:
          nmsg("System was already powered ON.")
 
    def system_power_off(self):
-      dbg("Processing system power-off request.", level=1)
+      dbg("Processing system power-off request.", level=self.dbg_msg_lvl_api_summary)
       power_state = self.get_power_state()
-      dbg("Current power state: %s" % power_state, level=2)
+      dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
       if power_state.lower() != "off":
          self._do_system_reset_action("ForceOff")
       else:
