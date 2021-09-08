@@ -20,15 +20,17 @@ import traceback
 
 # Some constatns:
 
-entry_kind_prop                = "*Kind"
-entry_kind_first_disk          = "first-disk"
-entry_kind_other_disk          = "other-disk"
-entry_kind_first_pxe_boot      = "first-pxe"
-entry_kind_other_pxe_boot      = "other-pxe"
-entry_kind_first_optical_drive = "first-optical-drive"
-entry_kind_other_optical_drive = "other-optical-drive"
-entry_kind_generic_usb         = "generic-usb"
-entry_kind_uefi_os             = "uefi-os"
+entry_kind_prop                  = "*Kind"
+entry_kind_first_disk            = "first-disk"
+entry_kind_other_disk            = "other-disk"
+entry_kind_first_pxe_boot        = "first-pxe"
+entry_kind_other_pxe_boot        = "other-pxe"
+entry_kind_first_optical_drive   = "first-optical-drive"
+entry_kind_other_optical_drive   = "other-optical-drive"
+entry_kind_virtual_floppy_drive  = "virtual-floppy-drive"
+entry_kind_virtual_optical_drive = "virtual-optical-drive"
+entry_kind_generic_usb           = "generic-usb"
+entry_kind_uefi_os               = "uefi-os"
 
 def dbg_show_boot_sequence(machine, boot_seq, show_details=True):
 
@@ -84,12 +86,24 @@ def classify_dell_boot_entries(machine, boot_seq):
    #   + Eg: Embedded SATA Port Optical Drive E: EFI DVD/CDROM 1
    #   + Recognized by:
    #     - UEFI device path being of the form PciRoot(...)
-   #     - Display name containing the string "Optical Drive"
+   #     - Display name containing the string "Optical Drive" and "EFI DVD/CDROM"
    #
    # - Generic USB boot entries:
    #   + Eg: Generic USB Boot
    #   + Recognized by:
    #     - Display name being equal to string "Generic USB Boot"
+   #
+   # - Virtual floppy drive entries (virtual media):
+   #   + Eg: Virtual Floppy Drive
+   #   + Recognized by:
+   #     - UEFI device path being of the form PciRoot(...)
+   #     - Display name being equal to string "Virtual Floppy Drive"
+   #
+   # - Virtual optical drive entries (virtual media):
+   #   + Eg: Virtual Floppy Drive
+   #   + Recognized by:
+   #     - UEFI device path being of the form PciRoot(...)
+   #     - Display name being equal to string "Virtual Optical Drive"
    #
    # - UEFI ("efitbootmgr managed") OS etnries:
    #   + Eg display name: Unavailable: Red Hat Enterprise Linux
@@ -149,7 +163,18 @@ def classify_dell_boot_entries(machine, boot_seq):
                   e[entry_kind_prop] = entry_kind_other_disk
                recognized = True
 
-         elif "Optical Drive" in display_name:
+         elif display_name == "Virtual Floppy Drive":
+            # dbg("Entry is virtual floppy drive")
+            e[entry_kind_prop] = entry_kind_virtual_floppy_drive
+            recognized = True
+
+         elif display_name == "Virtual Optical Drive":
+            # dbg("Entry is virtual optical drive")
+            e[entry_kind_prop] = entry_kind_virtual_optical_drive
+            recognized = True
+
+         elif "Optical Drive" in display_name and "EFI DVD/CDROM" in display_name:
+
             optical_drive_name = display_name[display_name.rfind(":")+2:]
             optical_drive_nr = int(optical_drive_name[optical_drive_name.rfind(" ")+1:])
             if optical_drive_nr == 1:
@@ -196,7 +221,7 @@ def classify_dell_boot_entries(machine, boot_seq):
          errors_occurred = True
    #
 
-   if not errors_occurred:
+   if errors_occurred:
       emsg("[%s] One or more boot-sequence errors occurred." % machine)
 
    return not errors_occurred
@@ -248,7 +273,9 @@ def rearrange_boot_sequence(machine, input_boot_seq):
    first_optical_drive_entry = None
    other_optical_drive_entries = []
    uefi_os_entries = []
-   other_entries = []
+   generic_usb_entries = []
+   virtual_floppy_drive_entry = None   # Assume just one
+   virtual_optical_drive_entry = None  # Assume just one
 
    errors_occurred = False
    for e in input_boot_seq:
@@ -273,10 +300,17 @@ def rearrange_boot_sequence(machine, input_boot_seq):
          other_optical_drive_entries.append(e)
 
       elif kind == entry_kind_generic_usb:
-         other_entries.append(e)
+         generic_usb_entries.append(e)
+
+      elif kind == entry_kind_virtual_floppy_drive:
+         virtual_floppy_drive_entry = e
+
+      elif kind == entry_kind_virtual_optical_drive:
+         virtual_optical_drive_entry = e
 
       elif kind == entry_kind_uefi_os:
          uefi_os_entries.append(e)
+
       else:
          emsg("[%s] Script logic error: Unrecognized entry-kind %s" % (machine, kind))
          errors_occurred = True
@@ -297,25 +331,29 @@ def rearrange_boot_sequence(machine, input_boot_seq):
    # These lists define the desired ordering of boot entryes by kind/class of entry.
 
    standard_ordering = [
-      {"kind": entry_kind_first_disk,          "required": True,  "enabled": True},
-      {"kind": entry_kind_first_pxe_boot,      "required": True,  "enabled": False},
-      {"kind": entry_kind_first_optical_drive, "required": False, "enabled": False},
-      {"kind": entry_kind_other_disk,          "required": False, "enabled": False},
-      {"kind": entry_kind_other_pxe_boot,      "required": False, "enabled": False},
-      {"kind": entry_kind_other_optical_drive, "required": False, "enabled": False},
-      {"kind": entry_kind_generic_usb,         "required": False, "enabled": False},
-      {"kind": entry_kind_uefi_os,             "required": False, "enabled": False}
+      {"kind": entry_kind_first_disk,            "required": True,  "enabled": True},
+      {"kind": entry_kind_first_pxe_boot,        "required": True,  "enabled": False},
+      {"kind": entry_kind_first_optical_drive,   "required": False, "enabled": False},
+      {"kind": entry_kind_other_disk,            "required": False, "enabled": False},
+      {"kind": entry_kind_other_pxe_boot,        "required": False, "enabled": False},
+      {"kind": entry_kind_other_optical_drive,   "required": False, "enabled": False},
+      {"kind": entry_kind_generic_usb,           "required": False, "enabled": False},
+      {"kind": entry_kind_virtual_floppy_drive,  "required": False, "enabled": False},
+      {"kind": entry_kind_virtual_optical_drive, "required": False, "enabled": False},
+      {"kind": entry_kind_uefi_os,               "required": False, "enabled": False}
    ]
 
    pxe_boot_ordering = [
-      {"kind": entry_kind_first_pxe_boot,      "required": True,  "enabled": True},
-      {"kind": entry_kind_first_disk,          "required": True,  "enabled": False},
-      {"kind": entry_kind_first_optical_drive, "required": False, "enabled": False},
-      {"kind": entry_kind_other_disk,          "required": False, "enabled": False},
-      {"kind": entry_kind_other_pxe_boot,      "required": False, "enabled": False},
-      {"kind": entry_kind_other_optical_drive, "required": False, "enabled": False},
-      {"kind": entry_kind_generic_usb,         "required": False, "enabled": False},
-      {"kind": entry_kind_uefi_os,             "required": False, "enabled": False}
+      {"kind": entry_kind_first_pxe_boot,        "required": True,  "enabled": True},
+      {"kind": entry_kind_first_disk,            "required": True,  "enabled": False},
+      {"kind": entry_kind_first_optical_drive,   "required": False, "enabled": False},
+      {"kind": entry_kind_other_disk,            "required": False, "enabled": False},
+      {"kind": entry_kind_other_pxe_boot,        "required": False, "enabled": False},
+      {"kind": entry_kind_other_optical_drive,   "required": False, "enabled": False},
+      {"kind": entry_kind_generic_usb,           "required": False, "enabled": False},
+      {"kind": entry_kind_virtual_floppy_drive,  "required": False, "enabled": False},
+      {"kind": entry_kind_virtual_optical_drive, "required": False, "enabled": False},
+      {"kind": entry_kind_uefi_os,               "required": False, "enabled": False}
    ]
 
    new_ordering = pxe_boot_ordering if use_pxe_boot_ordering else standard_ordering
@@ -354,7 +392,15 @@ def rearrange_boot_sequence(machine, input_boot_seq):
       },
       entry_kind_generic_usb: {
          "display-name": "generic usb-boot",
-         "source-data":  other_entries
+         "source-data":  generic_usb_entries
+      },
+      entry_kind_virtual_floppy_drive: {
+         "display-name": "virtual_floppy_drive",
+         "source-data":  virtual_floppy_drive_entry
+      },
+      entry_kind_virtual_optical_drive: {
+         "display-name": "virtual_optical_drive",
+         "source-data":  virtual_optical_drive_entry
       },
       entry_kind_uefi_os: {
          "display-name": "UEFI OS",
