@@ -4,7 +4,7 @@ terraform {
 }
 
 locals {
-   slot_list = concat([0, 1, 3], range(5, 20))
+   slot_list = concat([0, 1, 3], range(5, 24))
    slot_set = toset(formatlist("%02d", local.slot_list))
 }
 
