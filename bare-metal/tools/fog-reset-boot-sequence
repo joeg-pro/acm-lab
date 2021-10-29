@@ -25,6 +25,10 @@ entry_kind_first_disk            = "first-disk"
 entry_kind_other_disk            = "other-disk"
 entry_kind_first_pxe_boot        = "first-pxe"
 entry_kind_other_pxe_boot        = "other-pxe"
+entry_kind_first_http_boot       = "first-http"
+entry_kind_other_http_boot       = "other-http"
+entry_kind_first_iscsi_boot      = "first-iscsi"
+entry_kind_other_iscsi_boot      = "other-iscsi"
 entry_kind_first_optical_drive   = "first-optical-drive"
 entry_kind_other_optical_drive   = "other-optical-drive"
 entry_kind_virtual_floppy_drive  = "virtual-floppy-drive"
@@ -82,6 +86,18 @@ def classify_dell_boot_entries(machine, boot_seq):
    #     - UEFI device path being of the form VenHw(...)
    #     - Display name containing the string "PXE Device"
    #
+   # - HTTP Boot Entries:
+   #   + Eg. HTTP Device 1: Embedded NIC 2 Port 1 Partition 1
+   #   + Recognized by:
+   #     - UEFI device path being of the form VenHw(...)
+   #     - Display name containing the string "HTTP Device"
+   #
+   # - ISCSI Boot Entries:
+   #   + Eg. ISCSI Device 1: <Not Connected>
+   #   + Recognized by:
+   #     - UEFI device path being of the form VenHw(...)
+   #     - Display name containing the string "ISCSI Device"
+   #
    # - Optical drive entries:
    #   + Eg: Embedded SATA Port Optical Drive E: EFI DVD/CDROM 1
    #   + Recognized by:
@@ -125,6 +141,8 @@ def classify_dell_boot_entries(machine, boot_seq):
 
    first_disk_entry_encountered          = False
    first_pxe_boot_entry_encountered      = False
+   first_http_boot_entry_encountered     = False
+   first_iscsi_boot_entry_encountered    = False
    first_optical_drive_entry_encountered = False
 
    for e in boot_seq:
@@ -210,6 +228,42 @@ def classify_dell_boot_entries(machine, boot_seq):
                e[entry_kind_prop] = entry_kind_other_pxe_boot
             recognized = True
 
+         elif "HTTP Device" in display_name:
+            first_http_dev_prefix = "HTTP Device 1: "
+            is_first_http_device = display_name.startswith(first_http_dev_prefix)
+            if is_first_http_device:
+               if not first_http_boot_entry_encountered:
+                  http_dev_name = display_name[len(first_http_dev_prefix):]
+                  # dbg("Entry is first HTTP boot device: %s" % http_dev_name)
+                  e[entry_kind_prop] = entry_kind_first_http_boot
+                  first_http_boot_entry_encountered = True
+               else:
+                  emsg("[%s] Current boot sequence has multiple first-http-boot entries." % machine)
+                  errors_occurred = True
+            else:
+               http_dev_name = display_name[display_name.find(":")+2:]
+               # dbg("Entry is additional HTTP boot device: %s" % http_dev_name)
+               e[entry_kind_prop] = entry_kind_other_http_boot
+            recognized = True
+
+         elif "ISCSI Device" in display_name:
+            first_iscsi_dev_prefix = "ISCSI Device 1: "
+            is_first_iscsi_device = display_name.startswith(first_iscsi_dev_prefix)
+            if is_first_iscsi_device:
+               if not first_iscsi_boot_entry_encountered:
+                  iscsi_dev_name = display_name[len(first_iscsi_dev_prefix):]
+                  # dbg("Entry is first ISCSI boot device: %s" % iscsi_dev_name)
+                  e[entry_kind_prop] = entry_kind_first_iscsi_boot
+                  first_iscsi_boot_entry_encountered = True
+               else:
+                  emsg("[%s] Current boot sequence has multiple first-iscsi-boot entries." % machine)
+                  errors_occurred = True
+            else:
+               iscsi_dev_name = display_name[display_name.find(":")+2:]
+               # dbg("Entry is additional ISCSI boot device: %s" % iscsi_dev_name)
+               e[entry_kind_prop] = entry_kind_other_iscsi_boot
+            recognized = True
+
          elif display_name == "Generic USB Boot":
             # dbg("Entry is generic boot entry: %s" % display_name)
             e[entry_kind_prop] = entry_kind_generic_usb
@@ -253,6 +307,16 @@ def rearrange_boot_sequence(machine, input_boot_seq):
    #     - Other entries found are pushed down below all of the "first of" entries
    #       and are marked disabled.
    #
+   # - entry_kind_first_http_boot/entry_kind_other_http_boot:
+   #   + Default Disposition:
+   #     - All such entries found are pushed down below all of the "first of" entries
+   #       and are marked disabled.
+   #
+   # - entry_kind_first_iscsi_boot/entry_kind_other_iscsi_boot:
+   #   + Default Disposition:
+   #     - All such entries found are pushed down below all of the "first of" entries
+   #       and are marked disabled.
+   #
    # - entry_kind_generic_usb:
    #   + Default Disposition:
    #     - Considered to be of a generic "other" type
@@ -270,6 +334,10 @@ def rearrange_boot_sequence(machine, input_boot_seq):
    other_disk_entries = []
    first_pxe_boot_entry = None
    other_pxe_boot_entries = []
+   first_http_boot_entry = None
+   other_http_boot_entries = []
+   first_iscsi_boot_entry = None
+   other_iscsi_boot_entries = []
    first_optical_drive_entry = None
    other_optical_drive_entries = []
    uefi_os_entries = []
@@ -292,6 +360,18 @@ def rearrange_boot_sequence(machine, input_boot_seq):
 
       elif kind == entry_kind_other_pxe_boot:
          other_pxe_boot_entries.append(e)
+
+      elif kind == entry_kind_first_http_boot:
+         first_http_boot_entry = e
+
+      elif kind == entry_kind_other_http_boot:
+         other_http_boot_entries.append(e)
+
+      elif kind == entry_kind_first_iscsi_boot:
+         first_iscsi_boot_entry = e
+
+      elif kind == entry_kind_other_iscsi_boot:
+         other_iscsi_boot_entries.append(e)
 
       elif kind == entry_kind_first_optical_drive:
          first_optical_drive_entry = e
@@ -336,6 +416,10 @@ def rearrange_boot_sequence(machine, input_boot_seq):
       {"kind": entry_kind_first_optical_drive,   "required": False, "enabled": False},
       {"kind": entry_kind_other_disk,            "required": False, "enabled": False},
       {"kind": entry_kind_other_pxe_boot,        "required": False, "enabled": False},
+      {"kind": entry_kind_first_http_boot,       "required": False, "enabled": False},
+      {"kind": entry_kind_other_http_boot,       "required": False, "enabled": False},
+      {"kind": entry_kind_first_iscsi_boot,      "required": False, "enabled": False},
+      {"kind": entry_kind_other_iscsi_boot,      "required": False, "enabled": False},
       {"kind": entry_kind_other_optical_drive,   "required": False, "enabled": False},
       {"kind": entry_kind_generic_usb,           "required": False, "enabled": False},
       {"kind": entry_kind_virtual_floppy_drive,  "required": False, "enabled": False},
@@ -349,6 +433,10 @@ def rearrange_boot_sequence(machine, input_boot_seq):
       {"kind": entry_kind_first_optical_drive,   "required": False, "enabled": False},
       {"kind": entry_kind_other_disk,            "required": False, "enabled": False},
       {"kind": entry_kind_other_pxe_boot,        "required": False, "enabled": False},
+      {"kind": entry_kind_first_http_boot,       "required": False, "enabled": False},
+      {"kind": entry_kind_other_http_boot,       "required": False, "enabled": False},
+      {"kind": entry_kind_first_iscsi_boot,      "required": False, "enabled": False},
+      {"kind": entry_kind_other_iscsi_boot,      "required": False, "enabled": False},
       {"kind": entry_kind_other_optical_drive,   "required": False, "enabled": False},
       {"kind": entry_kind_generic_usb,           "required": False, "enabled": False},
       {"kind": entry_kind_virtual_floppy_drive,  "required": False, "enabled": False},
@@ -370,6 +458,14 @@ def rearrange_boot_sequence(machine, input_boot_seq):
          "display-name": "first-pxe-boot",
          "source-data":  first_pxe_boot_entry
       },
+      entry_kind_first_http_boot: {
+         "display-name": "first-http-boot",
+         "source-data":  first_http_boot_entry
+      },
+      entry_kind_first_iscsi_boot: {
+         "display-name": "first-iscsi-boot",
+         "source-data":  first_iscsi_boot_entry
+      },
       entry_kind_first_optical_drive: {
          "display-name": "first-optical-drive",
          "source-data":  first_optical_drive_entry
@@ -381,6 +477,14 @@ def rearrange_boot_sequence(machine, input_boot_seq):
       entry_kind_other_pxe_boot: {
          "display-name": "other pxe-boot",
          "source-data":  other_pxe_boot_entries
+      },
+      entry_kind_other_http_boot: {
+         "display-name": "other http-boot",
+         "source-data":  other_http_boot_entries
+      },
+      entry_kind_other_iscsi_boot: {
+         "display-name": "other iscsi-boot",
+         "source-data":  other_iscsi_boot_entries
       },
       entry_kind_other_optical_drive: {
          "display-name": "other optical-drive",
