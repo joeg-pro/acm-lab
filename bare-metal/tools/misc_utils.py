@@ -42,9 +42,10 @@ def die(msg, *args):
    eprint("Aborting.")
    exit(2)
 
-def dbg(msg, *args, level=1):
+def dbg(msg, *args, level=1, indent_level=0):
    if level <= dbg_volume_level:
-      eprint("DBG: " + msg, *args)
+      indenting = " " * (indent_level * 3)
+      eprint("DBG: " + indenting + msg, *args)
 
 
 def json_dumps(a_dict):
