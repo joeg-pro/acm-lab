@@ -1,5 +1,9 @@
 
 machines:
+- name: default
+  bmc:
+    address: "%s-drac.mgmt.acm.lab.eng.rdu2.redhat.com"
+    redfish: "%s-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1"
 - name: fog01
   bmc:
     address: fog01-drac.mgmt.acm.lab.eng.rdu2.redhat.com

@@ -11,7 +11,7 @@ import traceback
 
 def main():
 
-   set_dbg_volume_level(1)
+   set_dbg_volume_level(2)
 
    parser = argparse.ArgumentParser()
    parser.add_argument("machine" )
@@ -21,9 +21,11 @@ def main():
 
    machine   = args.machine
 
-   bmc_conn = LabBMCConnection.create_connection(machine, args)
-
    fog_name = machine
+
+   bmc_conn = LabBMCConnection.create_connection(machine, args, default_to_admin=True,
+                                                 use_default_bmc_info=True)
+
    is_single_node_machine = fog_name.startswith("fog")
 
    # Get the system resource.  From there, get the Chassis that holds physical resources.

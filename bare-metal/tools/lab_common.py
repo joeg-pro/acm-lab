@@ -34,7 +34,8 @@ class LabBMCConnection(object):
       parser.add_argument("--as-mgmt",  "-M",  dest="as_mgmt", action="store_true")
 
    @staticmethod
-   def create_connection(machine_name, args, default_to_admin=False):
+   def create_connection(machine_name, args, default_to_admin=False, default_to_default=False,
+                                             use_default_bmc_info=False):
 
       username = args.login_username
       password = args.login_password
@@ -45,8 +46,16 @@ class LabBMCConnection(object):
          for_std_user = "root"
       elif args.as_mgmt:
          for_std_user = "mgmt"
-      elif args.as_admin or default_to_admin:
+      elif args.as_admin:
          for_std_user = "admin"
+      else:
+         if default_to_admin:
+            for_std_user = "admin"
+         elif default_to_default:
+            for_std_user = "default"
+
+      if use_default_bmc_info and for_std_user is None:
+         for_std_user = "default"
 
       if username is not None:
          dbg("Creating connection to %s as specified user\" %s\"." % (machine_name, username), level=3)
@@ -56,15 +65,17 @@ class LabBMCConnection(object):
          dbg("Creating connection to %s using default standard user." % machine_name, level=3)
 
       return LabBMCConnection(machine_name, username=username, password=password,
-                              for_std_user=for_std_user)
+                              for_std_user=for_std_user, use_default_bmc_info=use_default_bmc_info)
 
-   def __init__(self, machine_name, username=None, password=None, for_std_user=None):
+   def __init__(self, machine_name, username=None, password=None,
+                for_std_user=None, use_default_bmc_info=False):
 
       if (username is not None) != (password is not None):
          die("Both BMC login username and password are required if either is provided.")
 
       self.machine_info = None
-      bmc_cfg = self._get_bmc_cfg(machine_name, for_std_user=for_std_user)
+      bmc_cfg = self._get_bmc_cfg(machine_name, for_std_user=for_std_user,
+                                  use_default_bmc_info=use_default_bmc_info)
 
       self.host = bmc_cfg["address"]
       self.username = bmc_cfg["username"] if username is None else username
@@ -104,12 +115,13 @@ class LabBMCConnection(object):
       self.delete_account       = self.connection.delete_account
       self.set_account_password = self.connection.set_account_password
 
-   def _get_bmc_cfg(self, machine_name, for_std_user=None):
+   def _get_bmc_cfg(self, machine_name, for_std_user=None, use_default_bmc_info=False):
 
       m_entry = None
       bmc_cfg = {}
       try:
-         m_entry = get_machine_entry(machine_name, for_std_user=for_std_user)
+         m_entry = get_machine_entry(machine_name, for_std_user=for_std_user,
+                                     use_default_bmc_info=use_default_bmc_info)
          bmc_info = m_entry["bmc"]
          bmc_cfg["address"]  = bmc_info["address"]
          bmc_cfg["username"] = bmc_info["username"]
@@ -195,10 +207,9 @@ def _load_machine_info_db(for_std_user=None):
    except KeyError:
       die("Machine info db not as expected (bmc data missing/wrong).")
 
-def get_machine_entry(machine_name, for_std_user=None):
+def get_machine_entry(machine_name, for_std_user=None, use_default_bmc_info=False):
 
    _load_machine_info_db(for_std_user=for_std_user)
-
 
    # Although the machine name key in the database isn't a hostname, we often
    # use it as the first component of a dotted fully-squalified hostname.
@@ -210,7 +221,15 @@ def get_machine_entry(machine_name, for_std_user=None):
    try:
       return machine_info[machine_name]
    except KeyError:
-      die("Machine %s not recored in machine info db." % machine_name)
+      if use_default_bmc_info:
+         info = machine_info["default"]
+         # The address and redfish entries are expected to contain a single %s
+         # substitution placeholder that we replace with the machine name.
+         info["bmc"]["address"] = info["bmc"]["address"] % machine_name
+         info["bmc"]["redfish"] = info["bmc"]["redfish"] % machine_name
+         return info
+      else:
+         die("Machine %s not recored in machine info db." % machine_name)
    #
 #
 
