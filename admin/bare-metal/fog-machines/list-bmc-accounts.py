@@ -4,7 +4,7 @@
 
 # Author: J. M. Gdaniec, Apr 2021
 
-from bmc_common import *
+from lab_common import *
 
 import argparse
 import traceback
@@ -22,7 +22,8 @@ def main():
 
    machine   = args.machine
 
-   bmc_conn = LabBMCConnection.create_connection(machine, args, default_to_admin=True)
+   bmc_conn =LabBMCConnection.create_connection(machine, args, default_to_admin=True,
+                                                use_default_bmc_info=True)
 
    acct_collection = bmc_conn.get_all_accounts()
    for name, acct_res in acct_collection.items():

@@ -11,15 +11,18 @@ import traceback
 
 def main():
 
-   set_dbg_volume_level(2)
+   set_dbg_volume_level(0)
 
    parser = argparse.ArgumentParser()
    parser.add_argument("machine" )
+   parser.add_argument("last_octet" )
    LabBMCConnection.add_bmc_login_argument_definitions(parser)
 
    args = parser.parse_args()
 
-   machine   = args.machine
+   machine = args.machine
+   ip_addr_last_octet  = args.last_octet
+   lab_network_ip_addr = "10.1.158.%s" % ip_addr_last_octet
 
    fog_name = machine
 
@@ -279,8 +282,6 @@ def main():
 
    lab_networking = dict()
 
-   ip_addr_last_octet = "99"  # XXX Maybe take as a script argument?
-
    if ge_nic_info:
       nic_info = dict()
       entry["nics"] = nic_info
@@ -292,7 +293,7 @@ def main():
          if a_nic["use_for_lab_networking"]:
             ln_info = dict()
             ln_info["for_nic_id"] = nic_id
-            ln_info["dhcp_ip_address"] = "10.1.158.%s" % ip_addr_last_octet
+            ln_info["dhcp_ip_address"] = lab_network_ip_addr
             ln_info["fqhn"] = "%s.acm.lab.eng.rdu2.redhat.com" % fog_name
             lab_networking["nic%s" % nic_id] = ln_info
    #
@@ -322,7 +323,13 @@ def main():
 
       entry["root_device_name"] = "/dev/sda"
 
-   print(yaml.dump(entries, sort_keys=False))
+   # print(yaml.dump(entries, sort_keys=False))
+
+   # For Jame's use:
+
+   dhcp_nic = "nic2"
+   dhcp_mac = entry["nics"][dhcp_nic]["mac_address"]
+   print("%s  %s  %s  %s" % (fog_name, dhcp_nic.upper(), dhcp_mac, lab_network_ip_addr))
 
 if __name__ == "__main__":
    try:

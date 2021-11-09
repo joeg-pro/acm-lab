@@ -4,7 +4,7 @@
 
 # Author: J. M. Gdaniec, Apr 2021
 
-from bmc_common import *
+from lab_common import *
 
 import argparse
 import traceback
@@ -30,7 +30,8 @@ def main():
    acct_pw   = args.password
    acct_role = args.role
 
-   bmc_conn = LabBMCConnection.create_connection(machine, args, default_to_admin=True)
+   bmc_conn = LabBMCConnection.create_connection(machine, args, default_to_admin=True,
+                                                 use_default_bmc_info=True)
 
    bmc_conn.create_account(acct_name, acct_pw, role=acct_role)
 
