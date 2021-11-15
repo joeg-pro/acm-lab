@@ -42,6 +42,9 @@ locals {
 
   first_test_slot_nr = 0
   last_test_slot_nr  = 24
+  maint_slot_nr      = 49
+
+  slot_list = concat(range(local.first_test_slot_nr, local.last_test_slot_nr+1), [local.maint_slot_nr])
 
   base_test_slot_vlan_id = 200
 
@@ -78,7 +81,8 @@ locals {
     vapor_02 = {name="Vapor02", nics=[2], ports=[46], vlans=local.vlans_for_vsphere_hosts}
   }
 
-  # Note: Add map entries to this map for any new switches:
+  # Note: Add map entries to this map for any new switches that have
+  # some non-slot-resident machines connected to them.
   machine_connections = {
     sw_ge_1 = local.sw_ge_1_non_slot_machines
   }
@@ -138,7 +142,7 @@ locals {
   # Generate the set of per-test-slot VLAN definitions.
 
   test_slot_data_vlans = {
-    for sn in range(local.last_test_slot_nr+1):
+    for sn in local.slot_list:
       format(local.data_vlan_name_pattern, sn) => {
         id = local.base_test_slot_vlan_id + (sn * 2)
         description = format(local.data_vlan_descr_pattern, sn)
@@ -146,7 +150,7 @@ locals {
   }
 
   test_slot_prov_vlans = {
-    for sn in range(local.last_test_slot_nr+1):
+    for sn in local.slot_list:
       format(local.prov_vlan_name_pattern, sn) => {
         id = local.base_test_slot_vlan_id + (sn * 2) + 1
         description = format(local.prov_vlan_descr_pattern, sn)
@@ -225,25 +229,103 @@ locals {
   # "Compile" machine-connection/switch port info into usable form.
   #------------------------------------------------------------------
 
-  # The configuration local variables related to port configs are defined in various
-  # ways to result in compact ways of specifying the config.  But in order to actually
-  # define port configs via TF for_each iteratoin, those compact defintiions need to
-  # be "compiled" -- converted and aggregated -- into a map of maps where the outer
-  # map has one entry per switch, and the inner map for that switch has one entry
-  # per port to be configured.  That's what the following logic does, with slight
-  # vartions needed for each of the input local vars.
+  # The configuration local variables in the section Config Locals above define the physcial
+  # connections in various waus chosen to result in an easy/compact way of spec'ing these.
+  #
+  # But in order to actually define port configs via TF for_each iteratoin, those compact
+  # defintiions need to be "compiled" -- converted and aggregated -- into a map of maps
+  # where the outer map has one entry per switch, and the inner map for that switch has
+  # one entry per port to be configured.  That's what the following hunks of logic does,
+  # with slight vartions needed for each of the input local vars.
 
-  # It seems not possible to do this kind of compiling in one fell swoop because
-  # sometimes the nesting means the fell swoop would require the key expression for
-  # the inner map to be insdie a nested for, which TF doesn't seem to allow, at least
-  # not syntatically.
+  # It seems not possible to do this kind of compiling in one fell swoop because sometimes
+  # the nesting means the fell swoop would require the key expression for the inner map to
+  # be insdie a nested for, which TF doesn't seem to allow, at least not syntatically.
+  # And trying a big fell swoop would probably make this impossible to debug (not that it
+  # isn't challenging already).
   #
   # So instead we convert the various inputs into a common intermediate form, which is
   # ten easily converted into a map of maps. This approach is inspired by the following
   # G issue command and related discussion:
   # https://github.com/hashicorp/terraform/issues/22263#issuecomment-581205359)
 
-  # Convert special machine connections to intermediate form.
+
+  # Convert special machine (eg. mists/vapors) connections to intermediate form.
+
+  # This converts local.machine_connections, which looks like this:
+  #
+  # macine_connections = {
+  #   sw_ge_1 = {
+  #     mist_01  = {
+  #       name  = "Mist01"
+  #       nics  = [2]
+  #       ports = [40]
+  #       vlans = [
+  #         "test-slot-00-data",
+  #         "test-slot-00-prov",
+  #         "test-slot-01-data",
+  #         "test-slot-01-prov",
+  #         ...
+  #         "test-slot-49-data",
+  #         "test-slot-49-prov",
+  #       ]
+  #     },
+  #     mist_02  = {
+  #       name  = "Mist02"
+  #       nics  = [2]
+  #       ports = [41]
+  #       vlans = [
+  #         "test-slot-00-data",
+  #         "test-slot-00-prov",
+  #         "test-slot-01-data",
+  #         "test-slot-01-prov",
+  #         ...
+  #         "test-slot-49-data",
+  #         "test-slot-49-prov",
+  #       ]
+  #     },
+  #   },
+  #   sw_ge_2 = {
+  #     ...
+  #   }
+  # }
+  #
+  # Into something that looks like this:
+  #
+  # machine_spc_intermediate = {
+  #   sw_ge_1 = [
+  #     {
+  #       key   = "ge-0/0/40"
+  #       value = {
+  #         description = "Mist01 1G NIC 2"
+  #         vlans = [
+  #           "test-slot-00-data",
+  #           "test-slot-00-prov",
+  #           "test-slot-01-data",
+  #           "test-slot-01-prov",
+  #           ...
+  #         ]
+  #       }
+  #     },
+  #     {
+  #       key   = "ge-0/0/41"
+  #       value = {
+  #         description = "Mist02 1G NIC 2"
+  #         vlans = [
+  #           "test-slot-00-data",
+  #           "test-slot-00-prov",
+  #           "test-slot-01-data",
+  #           "test-slot-01-prov",
+  #           ...
+  #         ]
+  #       }
+  #     },
+  #     ...
+  #   ],
+  #   sw_ge_2 = [
+  #     ...
+  #   ]
+  # }
 
   machine_spc_intermediate = {
     for sw_n,sw_mc in local.machine_connections: sw_n => flatten([
@@ -252,7 +334,8 @@ locals {
           key = format("ge-0/0/%s", mv.ports[i])
           value = {
             description = format("%s 1G NIC %d", mv.name, mv.nics[i])
-            vlans = [sw_mc[mn].vlans[i]]
+            vlans = sw_mc[mn].vlans
+            # Note: Currently, all ports for a machine have the same VLANs.
           }
         }
       ]
@@ -329,60 +412,6 @@ locals {
 
 }
 
-# ======== Switch 1 ========
-
-# VLANs:
-
-resource junos_vlan sw_ge_1_vlan {
-
-  provider = junos.sw_ge_1
-
-  for_each = local.all_vlan_defs
-  vlan_id     = each.value.id
-    name        = replace(each.key, "_", "-")
-    description = each.value.description
-}
-
-# Ports (Interfaces):
-
-resource junos_interface_physical sw_ge_1_port {
-
-  depends_on = [junos_vlan.sw_ge_1_vlan]
-
-  provider = junos.sw_ge_1
-
-  for_each = local.switch_port_configs["sw_ge_1"]
-    name         = each.key
-    description  = each.value.description
-    trunk        = length(each.value.vlans) > 1
-    vlan_members = each.value.vlans
-}
-
-# ======== Switch 2 ========
-
-# VLANs:
-
-resource junos_vlan sw_ge_2_vlan {
-
-  provider = junos.sw_ge_2
-
-  for_each = local.all_vlan_defs
-    vlan_id     = each.value.id
-    name        = replace(each.key, "_", "-")
-    description = each.value.description
-}
-
-# Ports (Interfaces):
-
-resource junos_interface_physical sw_ge_2_port {
-
-  depends_on = [junos_vlan.sw_ge_2_vlan]
-
-  provider = junos.sw_ge_2
-
-  for_each = local.switch_port_configs["sw_ge_2"]
-    name         = each.key
-    description  = each.value.description
-    trunk        = length(each.value.vlans) > 1
-    vlan_members = each.value.vlans
-}
+# Resource defintiions are in main-resources.tf to make it easier to omit them
+# (eg by renaming the file to *.aside") when debugging all of the "math" done by
+# the locals above via outputs.

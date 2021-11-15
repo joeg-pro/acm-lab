@@ -5,7 +5,10 @@ output import_info {
   value = local.import_info
 }
 
-# output debug {
-#   value = local.sw_1g_1_ports
+# output debug_1 {
+#   value = local.machine_connections
 # }
 
+# output debug_2 {
+#   value = local.machine_spc_intermediate
+# }
