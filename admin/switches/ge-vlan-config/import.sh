@@ -13,6 +13,9 @@ tmp_import_lines="./import-info.lines"
 $tf refresh > /dev/null
 $tf output -json import_info | jq -rc '.[] | "\(.resource) \(.id)"' > $tmp_import_lines
 
+# Special import for new switch based on hand-tailored import list:
+# cat ./new-switch-import.json | jq -rc '.[] | "\(.resource) \(.id)"' > $tmp_import_lines
+
 while read import_line; do
    resource=${import_line% *}
    id=${import_line#* }

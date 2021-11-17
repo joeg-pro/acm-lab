@@ -15,6 +15,8 @@ terraform {
 }
 
 provider junos {
+  # First switch in rack A36
+
   alias     = "sw_ge_1"
   ip        = "acm-2300-1g.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
@@ -22,8 +24,19 @@ provider junos {
 }
 
 provider junos {
+  # Second switch in rack A36
+
   alias     = "sw_ge_2"
   ip        = "acm-2300-1g-2.mgmt.acm.lab.eng.rdu2.redhat.com"
+  username  = var.switch_username
+  password  = var.switch_password
+}
+
+provider junos {
+  # First (only) switch in rack A37
+
+  alias     = "sw_ge_3"
+  ip        = "acm-2300-1g-3.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
@@ -33,8 +46,8 @@ provider junos {
 
 locals {
 
-  # Add future switches 3, 4 to this list when future == now.
-  sw_ge_numbers = [1, 2]
+  # Add future switches 4, 5 to this list when future == now.
+  sw_ge_numbers = [1, 2, 3]
 
   #--- VLANs ---
 
@@ -93,14 +106,25 @@ locals {
 
   sw_ge_1_unused_ports = [36, 37, 38, 39]
   sw_ge_2_unused_ports = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+  # NB: List of unused ports for Switch #2 is probably incomplete.
+  #     Switch has only fog19 to 24, so all ports 12 to 47 are unused.
+  sw_ge_3_unused_ports = range(36, 47+1)
 
   # Note: Add map entries to this map for any new switches:
   unused_ports = {
     sw_ge_1 = local.sw_ge_1_unused_ports
     sw_ge_2 = local.sw_ge_2_unused_ports
+    sw_ge_3 = local.sw_ge_3_unused_ports
   }
 
-  # Switch 1 has an uplink to RH network, and a connection to switch 2.
+  # Infra-Switch connections:
+  #
+  # Switch 1: Connected to Switch 2, Switch 3
+  #
+  # Switch 2: Connected to Switch 1
+  # Switch 3: Connected to Switch 1
+
+  # Switch 1 has an uplink to RH network, and connections to switchs 2 and 3.
 
   sw_ge_1_special_port_configs = [
     {
@@ -112,15 +136,70 @@ locals {
       port_name = "xe-0/1/3"
       description = "Link to 1Gb switch 2"
       vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/2"
+      description = "TEMP Link to 1Gb switch 3"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/0"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/1"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
     }
   ]
 
-  # And switch 2 has the other end of the connection from switch 1.
+  # Switch 2 has a connection to Switch 1
 
   sw_ge_2_special_port_configs = [
     {
       port_name = "xe-0/1/3"
       description = "Link to 1Gb switch 1"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/2"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/0"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/1"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
+    }
+  ]
+
+  # Switch 3 has a connection to Switch 1.
+
+  sw_ge_3_special_port_configs = [
+    {
+      port_name = "xe-0/1/2"
+      description = "TEMP Link to 1Gb switch 1"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/0"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/1"
+      description = "Future ineter-switch link"
+      vlans = local.all_vlan_names
+    },
+    {
+      port_name = "xe-0/1/3"
+      description = "Future ineter-switch link"
       vlans = local.all_vlan_names
     }
   ]
@@ -129,6 +208,7 @@ locals {
   special_ports = {
     sw_ge_1 = local.sw_ge_1_special_port_configs
     sw_ge_2 = local.sw_ge_2_special_port_configs
+    sw_ge_3 = local.sw_ge_3_special_port_configs
   }
 }
 
