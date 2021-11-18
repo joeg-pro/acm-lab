@@ -12,6 +12,7 @@ import argparse
 import time
 import traceback
 
+leave_machines_powered_on = True
 
 class ImportSystemProfileTask(DellSpecificTask):
 
@@ -36,7 +37,7 @@ class ImportSystemProfileTask(DellSpecificTask):
       oem_actions = sys_mgr_res["Actions"]["Oem"]
       import_action = oem_actions["#OemManager.v1_2_0.OemManager#OemManager.ImportSystemConfiguration"]
       import_target = import_action["target"]
-      dbg("Profile-import action-target: %s" % import_target)
+      dbg("Profile-import action-target: %s" % import_target, level=9)
 
       self.task_target = import_target
 
@@ -61,16 +62,20 @@ class ImportSystemProfileTask(DellSpecificTask):
 
    @classmethod
    def announce_post_completion_pass(self):
-      blurt("Powering all machines off.")
+      if leave_machines_powered_on:
+         blurt("Leaving all machines powered on.")
+      else:
+          blurt("Powering all machines off.")
       return
 
    def post_completion(self):
-      return self.do_power_action("Off")
+      power_action = "On" if leave_machines_powered_on else "Off"
+      return self.do_power_action(power_action)
 
 
 def main():
 
-   set_dbg_volume_level(1)
+   set_dbg_volume_level(0)
 
    # Args: profile_file machine1 <machine2> ....
 

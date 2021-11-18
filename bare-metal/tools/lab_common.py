@@ -443,6 +443,17 @@ class TaskRunner:
                   task.ending_task_res = task_res ## Should use a setter ##
                else:
                   task_state = task_res["TaskState"]
+
+                  if task_state == "":
+                     # Dell iDRAC seems to sometimes provide no task state, for example
+                     # when running Import-Configuration jobs (MessageId IDRAC.2.4.SYS034).
+                     # Use the job state from the Dell Oem info in these cases if we can
+                     # find same.
+                     try:
+                        task_state = "%s*" % task_res["Oem"]["Dell"]["JobState"]
+                     except KeyError:
+                        task_state = "???"
+
                   if task_state == "Pending":
                      blurt("[%s] Task is scheduled/pending." % machine)
                   elif task_state == "Starting":
