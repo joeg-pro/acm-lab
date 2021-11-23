@@ -9,6 +9,8 @@ from lab_common import *
 import argparse
 import traceback
 
+emit_just_dhcp_info = False
+
 def main():
 
    set_dbg_volume_level(0)
@@ -231,7 +233,7 @@ def main():
             nic_id = int(phys_port_nr)
             a_nic["id"] = nic_id
             a_nic["type"] = "ge"
-            a_nic["device_name"] = "/dev/enpxyz%s" % nic_id
+            a_nic["device_name"] = "/dev/eno%s" % nic_id
             a_nic["mac_address"] = mac_addr
 
             connected_to_lab = True if nic_id == lab_nic_nr else False
@@ -252,7 +254,7 @@ def main():
             nic_id = int(phys_port_nr)
             a_nic["id"] = nic_id
             a_nic["type"] = "xe"
-            a_nic["device_name"] = "/dev/need-to-figure-out"
+            a_nic["device_name"] = "/dev/enxxx%s" % nic_id
             a_nic["mac_address"] = mac_addr
 
             connected_to_lab = False
@@ -323,13 +325,12 @@ def main():
 
       entry["root_device_name"] = "/dev/sda"
 
-   # print(yaml.dump(entries, sort_keys=False))
-
-   # For Jame's use:
-
-   dhcp_nic = "nic2"
-   dhcp_mac = entry["nics"][dhcp_nic]["mac_address"]
-   print("%s  %s  %s  %s" % (fog_name, dhcp_nic.upper(), dhcp_mac, lab_network_ip_addr))
+   if not emit_just_dhcp_info:
+      print(yaml.dump(entries, sort_keys=False))
+   else:
+      dhcp_nic = "nic2"
+      dhcp_mac = entry["nics"][dhcp_nic]["mac_address"]
+      print("%s  %s  %s  %s" % (fog_name, dhcp_nic.upper(), dhcp_mac, lab_network_ip_addr))
 
 if __name__ == "__main__":
    try:
