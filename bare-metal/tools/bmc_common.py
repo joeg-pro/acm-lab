@@ -44,13 +44,17 @@ class BMCRequestError(BMCError):
       self.status   = None
 
       if msg is not None:
-         self.message   = msg
+         self.message    = msg
+         self.message_id = None
 
       elif resp is not None:
-         self.status    = resp.status_code
+         self.status     = resp.status_code
+         self.message    = None
+         self.message_id = None
 
          dbg("Raising error for RedFish response:\n%s" % json_dumps(_resp_json(resp)), level=9)
 
+         msg_id = None
          resp_json = {}
          if resp.text is not None:
             resp_content_type = resp.headers.get("content-type")
@@ -71,7 +75,8 @@ class BMCRequestError(BMCError):
                msg = err["message"]
          else:
             msg = "An unspecified BMC request error occurred."
-         self.message   = msg
+         self.message    = msg
+         self.message_id = msg_id
 
       else:
          self.message = "An unknown error occurred."
@@ -81,6 +86,9 @@ class BMCRequestError(BMCError):
          return self.message
       else:
          return "Status %d: %s" % (self.status, self.message)
+
+   def msg_id(self):
+      return self.message_id
 
 # All Redfish task states:
 #
