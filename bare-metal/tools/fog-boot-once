@@ -1,0 +1,92 @@
+#!/bin/python3
+
+# Author: J. M. Gdaniec, Nov 2021
+
+from lab_common import *
+
+import argparse
+import requests
+import json
+import sys
+import threading
+import traceback
+
+from threading import Thread
+
+class DoOneTimeBoot(Thread):
+
+    def __init__(self, args,  machine, boot_target, is_multi):
+       Thread.__init__(self)
+       self.args = args
+       self.machine = machine
+       self.boot_target = boot_target
+       self.is_multi = is_multi
+
+    def run(self):
+
+       args = self.args
+       m = self.machine
+       boot_target = self.boot_target
+       is_multi = self.is_multi
+
+       bmc_conn = LabBMCConnection.create_connection(m, args)
+       sys_res = bmc_conn.get_system_resource()
+
+       override_enabled = "Once" if boot_target is not "None" else "Disabled"
+
+       patch_body = {
+          "Boot": {
+             "BootSourceOverrideEnabled": override_enabled,
+             "BootSourceOverrideMode":    "UEFI",
+             "BootSourceOverrideTarget":   boot_target
+          }
+       }
+
+       try:
+          bmc_conn.update_resource(sys_res, patch_body)
+       except BMCRequestError as exc:
+          #  IDRAC.2.4.SYS011: Pending configuration values are already committed,
+          #                    unable to perform another set operation.
+          if exc.msg_id() == "IDRAC.2.4.SYS011":
+             emsg("Uncommitted configuration changes are already pending.", prefix=m)
+             return
+          else:
+             raise exc
+
+       bmc_conn.system_reboot(quiet=True)
+       blurt("SYstem is rebooting for one-time %s boot." % boot_target, prefix=m)
+
+# Main:
+
+def main():
+
+   set_dbg_volume_level(2)
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("target", choices=["pxe", "cd", "none"])
+   parser.add_argument("machines", nargs="+" )
+
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+   boot_target = args.target.capitalize()
+   machines = args.machines
+
+   is_multi = len(machines) > 1
+   threads = []
+   for m in machines:
+      t = DoOneTimeBoot(args, m, boot_target, is_multi)
+      t.start()
+      threads.append(t)
+   for t in threads:
+      t.join()
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+

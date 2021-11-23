@@ -12,7 +12,7 @@ import argparse
 import time
 import traceback
 
-leave_machines_powered_on = True
+leave_machines_powered_on = False
 
 class ImportSystemProfileTask(DellSpecificTask):
 
