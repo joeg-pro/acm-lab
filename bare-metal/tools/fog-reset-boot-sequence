@@ -81,7 +81,8 @@ def classify_dell_boot_entries(machine, boot_seq):
    #     - Display name containing the string "Disk Placeholder"
    #
    # - PXE Boot entries:
-   #   + Eg: PXE Device 1: Embedded NIC 1 Port 1 Partition 1
+   #   + Eg: PXE Device 1: Embedded NIC 1 Port 1 Partition 1 (R340)
+   #       : PXE Device 1: Integrated NIC 1 Port 1 Partition 1 (R640)
    #   + Recognized by:
    #     - UEFI device path being of the form VenHw(...)
    #     - Display name containing the string "PXE Device"
@@ -427,6 +428,23 @@ def rearrange_boot_sequence(machine, input_boot_seq):
       {"kind": entry_kind_uefi_os,               "required": False, "enabled": False}
    ]
 
+   pxe_fallback_ordering = [
+      {"kind": entry_kind_first_disk,            "required": True,  "enabled": True},
+      {"kind": entry_kind_first_pxe_boot,        "required": True,  "enabled": True},
+      {"kind": entry_kind_first_optical_drive,   "required": False, "enabled": False},
+      {"kind": entry_kind_other_disk,            "required": False, "enabled": False},
+      {"kind": entry_kind_other_pxe_boot,        "required": False, "enabled": False},
+      {"kind": entry_kind_first_http_boot,       "required": False, "enabled": False},
+      {"kind": entry_kind_other_http_boot,       "required": False, "enabled": False},
+      {"kind": entry_kind_first_iscsi_boot,      "required": False, "enabled": False},
+      {"kind": entry_kind_other_iscsi_boot,      "required": False, "enabled": False},
+      {"kind": entry_kind_other_optical_drive,   "required": False, "enabled": False},
+      {"kind": entry_kind_generic_usb,           "required": False, "enabled": False},
+      {"kind": entry_kind_virtual_floppy_drive,  "required": False, "enabled": False},
+      {"kind": entry_kind_virtual_optical_drive, "required": False, "enabled": False},
+      {"kind": entry_kind_uefi_os,               "required": False, "enabled": False}
+   ]
+
    pxe_boot_ordering = [
       {"kind": entry_kind_first_pxe_boot,        "required": True,  "enabled": True},
       {"kind": entry_kind_first_disk,            "required": True,  "enabled": False},
@@ -444,7 +462,12 @@ def rearrange_boot_sequence(machine, input_boot_seq):
       {"kind": entry_kind_uefi_os,               "required": False, "enabled": False}
    ]
 
-   new_ordering = pxe_boot_ordering if use_pxe_boot_ordering else standard_ordering
+   if use_pxe_fallback_ordering:
+      new_ordering = pxe_fallback_ordering
+   elif use_pxe_boot_ordering:
+      new_ordering = pxe_boot_ordering
+   else:
+      new_ordering = standard_ordering
 
    # This map defines where the reordering loop finds source data for each kind/class
    # of entry as it encounters them.  (It provides some display stuff too.)
@@ -794,7 +817,7 @@ class ResetBootSequenceTask(DellSpecificTask):
       boot_sources_settings_res = bmc_conn.get_resource(boot_sources_settings_id)
       pending_changes = boot_sources_settings_res["Attributes"]
       if not pending_changes:
-         dbg("[%s] No changes are pending after making update.  No need for config task." % machine)
+         blurt("[%s] Boot sequence is already as desired." % machine)
          return False
 
          # dbg("HACKING TO FORCE CHANGES FOR DEV ITERATION")
@@ -850,16 +873,19 @@ class ResetBootSequenceTask(DellSpecificTask):
 def main():
 
    global use_pxe_boot_ordering
+   global use_pxe_fallback_ordering
 
-   set_dbg_volume_level(1)
+   set_dbg_volume_level(0)
 
    parser = argparse.ArgumentParser()
    parser.add_argument("machines", nargs="+")
    parser.add_argument("--pxe-boot", dest="use_pxe_boot_sequence", action="store_true")
+   parser.add_argument("--pxe-fallback", dest="use_pxe_fallback_sequence", action="store_true")
    LabBMCConnection.add_bmc_login_argument_definitions(parser)
 
    args     = parser.parse_args()
    machines = args.machines
+   use_pxe_fallback_ordering = args.use_pxe_fallback_sequence
    use_pxe_boot_ordering = args.use_pxe_boot_sequence
 
    runner = TaskRunner(machines, args, ResetBootSequenceTask, None)

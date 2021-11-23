@@ -48,7 +48,10 @@ class WipeDiskTask(DellSpecificTask):
 
       target_stg_res_inst_id = "RAID.Integrated.1-1"
       target_volume_name = "system"
-      expected_stg_ctrl_models = ["PERC H330 Adapter"]
+      expected_stg_ctrl_models = [
+         "PERC H330 Adapter",  # On our "Gen 1" R340 bare metal nodes
+         "PERC H330 Mini"      # On our "Gen 2" R640 bare metal nodes
+      ]
 
       stg_collection_id = system_res["Storage"]["@odata.id"]
       target_stg_res_id = stg_collection_id + "/" + target_stg_res_inst_id

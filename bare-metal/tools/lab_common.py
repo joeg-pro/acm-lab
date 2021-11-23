@@ -108,6 +108,7 @@ class LabBMCConnection(object):
       self.get_system_power_state  = self.connection.get_power_state
       self.system_power_on         = self.connection.system_power_on
       self.system_power_off        = self.connection.system_power_off
+      self.system_reboot           = self.connection.system_reboot
 
       self.get_all_accounts     = self.connection.get_all_accounts
       self.get_account          = self.connection.get_account
@@ -311,7 +312,7 @@ class TaskRunner:
       errors_occurred = False
       for machine in self.machines:
 
-         blurt("Opening BMC connectino with %s and doing verification." % machine)
+         blurt("[%s] Opening BMC connectino and doing verification." % machine)
 
          bmc_conn = LabBMCConnection.create_connection(machine, self.connection_args,
                                                        default_to_admin=self.default_to_admin)

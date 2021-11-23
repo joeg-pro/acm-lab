@@ -16,34 +16,71 @@ def main():
 
    set_dbg_volume_level(0)
 
-   action_choices = ["status", "state", "forceoff", "off", "on"]
+   action_choices = ["status", "state", "forceoff", "off", "on", "reboot"]
 
    parser = argparse.ArgumentParser()
-   parser.add_argument("machine" )
-   parser.add_argument("action", nargs="?", choices=action_choices, default="status")
+   # parser.add_argument("machine" )
+   # parser.add_argument("action", nargs="?", choices=action_choices, default="status")
+
+   parser.add_argument("arg1" )
+   parser.add_argument("argn", nargs="*")
+
    LabBMCConnection.add_bmc_login_argument_definitions(parser)
 
    args = parser.parse_args()
 
-   machine = args.machine
-   action  = args.action
+   # Support multi-system and legacy modes of invocation
+   #   fog-power-ctrl <action> <machine1> [<machine2> ...]
+   #   fog-power-ctrl <machine> <action>
 
-   bmc_conn = LabBMCConnection.create_connection(machine, args)
-
-   action = action.lower()
-   if action in ["status", "state"]:
-      resp = bmc_conn.get_power_state()
-      print(resp)
-
-   elif action in ["forceoff", "off"]:
-      resp = bmc_conn.system_power_off()
-
-   elif action in ["on"]:
-      resp = bmc_conn.system_power_on()
-
+   if args.arg1.lower() in action_choices:
+      action   = args.arg1.lower()
+      machines = args.argn
    else:
-      emsg("Unrecognized actoin: %s" % action)
-      exit(1)
+      if len(args.argn) == 0:
+         action = "status"
+         machines = [args.arg1]
+      elif len(args.argn) == 1:
+         action = args.argn[0].lower()
+         machines = [args.arg1]
+         if not action.lower() in action_choices:
+            emsg("Unrecognized action: %s" % action)
+            exit(5)
+      else:
+         emsg("Too many arguments in legacy-mode invocation.")
+         exit(5)
+
+   for m in machines:
+      bmc_conn = LabBMCConnection.create_connection(m, args)
+      power_state = bmc_conn.get_power_state()
+
+      action = action.lower()
+      if action in ["status", "state"]:
+         if len(machines) == 1:
+            blurt(power_state)
+         else:
+            blurt("%s: %s" % (m, poser_state))
+
+      elif action in ["forceoff", "off"]:
+         msg = "Powering Off" if power_state != "Off" else "Already Off"
+         if len(machines) > 1:
+            blurt("%s: %s" % (m, msg))
+         resp = bmc_conn.system_power_off(quiet=True)
+
+      elif action in ["on"]:
+         msg = "Powering On" if power_state != "On" else "Already On"
+         if len(machines) > 1:
+            blurt("%s: %s" % (m, msg))
+         resp = bmc_conn.system_power_on(quiet=True)
+
+      elif action in ["reboot"]:
+         msg = "Rebooting" if power_state == "On" else "Powering On"
+         if len(machines) > 1:
+            blurt("%s: %s" % (m, msg))
+         resp = bmc_conn.system_reboot(quiet=True)
+      else:
+         emsg("Unrecognized actoin: %s" % action)
+         exit(1)
 
 if __name__ == "__main__":
    try:

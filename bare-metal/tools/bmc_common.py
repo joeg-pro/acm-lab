@@ -255,19 +255,30 @@ class BMCConnection(object):
          # Oops, tripped over ourselves.  Give up retry attempt.
          return resp
 
-      if msg_id == "IDRAC.2.2.SWC0700":
-         # Error is an "iDRAC not ready one.  Wait and retry.
-         dbg("Got iDRAC-not-ready error. Retrying request after pause.", level=self.dbg_msg_lvl_rf_requests)
-         time.sleep(5)  # Arbitrary, but kinda recommended by corrective-action in iDRAC response.
-         resp = func(*args, **kwargs)
-      elif msg_id == "IDRAC.2.3.SYS518":
-         # Error Msg: "iDRAC is currently unable to display any information because data sources are unavailable"
-         dbg("Got iDRAC-data-sources-unavailable error. Retrying request after pause.",
-             level=self.dbg_msg_lvl_rf_requests)
-         time.sleep(5)
-         resp = func(*args, **kwargs)
+      # Dell iDRAC sometimes returns some not-ready kind of errors.  Detect common
+      # cases and do a retry.
+
+      if msg_id.startswith("IDRAC."):
+
+         # Seems these msg ids are of the form "IDRAC.x.y.msg_nr" where its the msg_nr
+         # part that is the best thing to use to trigger detection.  So extact that part.
+
+         last_dot = msg_id.rfind(".")
+         msg_nr = msg_id[last_dot+1:]
+
+         if msg_nr == "SWC0700":
+            # Error is an "iDRAC not ready one.  Wait and retry.
+            dbg("Got iDRAC-not-ready error. Retrying request after pause.", level=self.dbg_msg_lvl_rf_requests)
+            time.sleep(5)  # Arbitrary, but kinda recommended by corrective-action in iDRAC response.
+            resp = func(*args, **kwargs)
+         elif msg_nr == "SYS518":
+            # Error Msg: "iDRAC is currently unable to display any information because data sources are unavailable"
+            dbg("Got iDRAC-data-sources-unavailable error. Retrying request after pause.",
+                level=self.dbg_msg_lvl_rf_requests)
+            time.sleep(5)
+            resp = func(*args, **kwargs)
+            #
          #
-      #
 
       return resp
 
@@ -910,23 +921,49 @@ class BMCConnection(object):
 
       # TODO: Remove system resource from cache since we've changed it.
 
-   def system_power_on(self):
+   def system_power_on(self, quiet=False):
       dbg("Processing system power-on request.", level=self.dbg_msg_lvl_api_summary)
       power_state = self.get_power_state()
       dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
       if power_state.lower() != "on":
          self._do_system_reset_action("On")
       else:
-         nmsg("System was already powered ON.")
+         if not quiet:
+            nmsg("System was already powered ON.")
 
-   def system_power_off(self):
+   def system_power_off(self, quiet=True):
       dbg("Processing system power-off request.", level=self.dbg_msg_lvl_api_summary)
       power_state = self.get_power_state()
       dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
       if power_state.lower() != "off":
          self._do_system_reset_action("ForceOff")
       else:
-         nmsg("System was already powered OFF.")
+         if not quiet:
+            nmsg("System was already powered OFF.")
+
+   def system_reboot(self, quiet=True, force=False):
+      # Handled as boot (if off) or reboot (if on) the system.
+      dbg("Processing system reboot request.", level=self.dbg_msg_lvl_api_summary)
+      power_state = self.get_power_state()
+      dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
+      if power_state.lower() == "on":
+         action = "ForceRestart" if force else "GracefulRestart"
+         self._do_system_reset_action(action)
+      else:
+         if not quiet:
+            nmsg("Powering system ON (was OFF).")
+         self._do_system_reset_action("On")
+
+   def system_shutdown(self, quiet=True):
+      dbg("Processing system shutdown request.", level=self.dbg_msg_lvl_api_summary)
+      power_state = self.get_power_state()
+      dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
+      if power_state.lower() == "on":
+         self._do_system_reset_action("GracefulShutdown")
+      else:
+         if not quiet:
+            nmsg("System was already OFF.")
+   #
 
 
 class DellBMCConnection(BMCConnection):
