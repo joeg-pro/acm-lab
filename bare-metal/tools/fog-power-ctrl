@@ -8,7 +8,56 @@ import argparse
 import requests
 import json
 import sys
+import threading
 import traceback
+
+from threading import Thread
+
+class DoPowerActoin(Thread):
+
+    def __init__(self, args, action, machine, is_multi):
+       Thread.__init__(self)
+       self.args = args
+       self.action = action
+       self.machine = machine
+       self.is_multi = is_multi
+
+    def run(self):
+
+       args = self.args
+       m = self.machine
+       action = self.action
+       is_multi = self.is_multi
+
+       bmc_conn = LabBMCConnection.create_connection(m, args)
+       power_state = bmc_conn.get_power_state()
+
+       action = action.lower()
+       if action in ["status", "state"]:
+          if is_multi:
+             blurt("%s: %s" % (m, power_state))
+          else:
+             blurt(power_state)
+
+       elif action in ["forceoff", "off"]:
+          msg = "Powering Off" if power_state != "Off" else "Already Off"
+          if is_multi:
+             blurt("%s: %s" % (m, msg))
+          resp = bmc_conn.system_power_off(quiet=True)
+
+       elif action in ["on"]:
+          msg = "Powering On" if power_state != "On" else "Already On"
+          if is_multi:
+             blurt("%s: %s" % (m, msg))
+          resp = bmc_conn.system_power_on(quiet=True)
+
+       elif action in ["reboot"]:
+          msg = "Rebooting" if power_state == "On" else "Powering On"
+          if is_multi:
+             blurt("%s: %s" % (m, msg))
+          resp = bmc_conn.system_reboot(quiet=True)
+       else:
+          emsg("Unrecognized actoin: %s" % action)
 
 # Main:
 
@@ -50,37 +99,14 @@ def main():
          emsg("Too many arguments in legacy-mode invocation.")
          exit(5)
 
+   is_multi = len(machines) > 1
+   threads = []
    for m in machines:
-      bmc_conn = LabBMCConnection.create_connection(m, args)
-      power_state = bmc_conn.get_power_state()
-
-      action = action.lower()
-      if action in ["status", "state"]:
-         if len(machines) == 1:
-            blurt(power_state)
-         else:
-            blurt("%s: %s" % (m, poser_state))
-
-      elif action in ["forceoff", "off"]:
-         msg = "Powering Off" if power_state != "Off" else "Already Off"
-         if len(machines) > 1:
-            blurt("%s: %s" % (m, msg))
-         resp = bmc_conn.system_power_off(quiet=True)
-
-      elif action in ["on"]:
-         msg = "Powering On" if power_state != "On" else "Already On"
-         if len(machines) > 1:
-            blurt("%s: %s" % (m, msg))
-         resp = bmc_conn.system_power_on(quiet=True)
-
-      elif action in ["reboot"]:
-         msg = "Rebooting" if power_state == "On" else "Powering On"
-         if len(machines) > 1:
-            blurt("%s: %s" % (m, msg))
-         resp = bmc_conn.system_reboot(quiet=True)
-      else:
-         emsg("Unrecognized actoin: %s" % action)
-         exit(1)
+      t = DoPowerActoin(args, action, m, is_multi)
+      t.start()
+      threads.append(t)
+   for t in threads:
+      t.join()
 
 if __name__ == "__main__":
    try:
