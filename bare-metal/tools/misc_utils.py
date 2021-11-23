@@ -25,17 +25,31 @@ def get_dbg_volume_level():
 def eprint(*args, **kwargs):
    print(*args, file=sys.stderr, **kwargs)
 
-def emsg(msg, *args):
-   eprint("Error: " + msg, *args)
+def emsg(msg, *args, prefix=None):
+   if prefix:
+      eprint("[%s] Error: %s" % (prefix, msg,), *args)
+   else:
+      eprint("Error: %s" % msg, *args)
 
-def wmsg(msg, *args):
-   eprint("Warning: " + msg, *args)
+def wmsg(msg, *args, prefix=None):
+   if prefix:
+      eprint("[%s] Warning: %s" % (prefix, msg,), *args)
+   else:
+      eprint("Warning: %s" % msg, *args)
 
-def nmsg(msg, *args):
-   eprint("Note: " + msg, *args)
+def nmsg(msg, *args, prefix=None):
+   if prefix:
+      eprint("[%s] Note: %s" % (prefix, msg,), *args)
+   else:
+      eprint("Note: %s" % msg, *args)
 
 def blurt(*args, **kwargs):
-   print(*args, **kwargs)
+   if "prefix" in kwargs:
+      prefix = kwargs["prefix"]
+      del kwargs["prefix"]
+      print("[%s]" % prefix, *args, **kwargs)
+   else:
+      print(*args, **kwargs)
 
 def die(msg, *args):
    eprint("Error: " + msg, *args)
