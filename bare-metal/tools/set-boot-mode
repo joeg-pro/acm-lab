@@ -1,0 +1,177 @@
+#!/bin/python3
+
+# Set the system's boot mode to UEFI or BIOS.
+#
+# Tested only on Dell systems, so its not yet clear of its Dell specific or not.
+# Probably is because doc suggests the names of BIOS attributes are OEM-specific.
+#
+# Notes:
+#
+# Author: J. M. Gdaniec, Nov 2021
+
+from lab_common import *
+
+import argparse
+import json
+import time
+import traceback
+
+# Note: This might be a good template for making any general BIOS settings changes.
+
+class SetBootModeTask(DellSpecificTask):
+
+   def __init__(self, machine, bmc_conn, task_arg):
+      super(SetBootModeTask, self).__init__(machine, bmc_conn)
+
+      self.abandon = False
+
+   @classmethod
+   def get_short_task_name(self):
+      return "bios-config"
+
+   def pre_check(self):
+      if not super(SetBootModeTask, self).pre_check():
+         return False
+
+      bmc_conn = self.bmc_conn
+      machine = self.machine
+
+      # Override under-the-covers dbg msg level control to get the BMC-common library
+      # to echo requests other than Get or session-control ones.
+      # bmc_conn.connection.dbg_msg_lvl_rf_write_requests = 1
+
+      system_res = bmc_conn.get_system_resource()
+      self.system_res = system_res
+
+      # Boot mode is in the Bios resource, which has an associated Settings resource
+      # if we need to make changes.
+
+      bios_res_id = system_res["Bios"]["@odata.id"]
+      bios_res = bmc_conn.get_resource(bios_res_id)
+      self.target_res = bios_res
+
+      self.task_target = None  # Figure this out later in the TaskRunner flow.
+      self.task_body   = None
+      return True
+
+   def prepare_task_request(self):
+
+      bmc_conn = self.bmc_conn
+      machine  = self.machine
+
+      # If the current boot mode is the desired one, there is nothing to do.
+
+      current_boot_mode = self.target_res["Attributes"]["BootMode"]
+      current_hdd_placeholder = self.target_res["Attributes"]["HddPlaceholder"]
+
+      patch_attributes = {}
+
+      # Note: We can't change both boot mode and the HDD-Placeholder status in the same
+      # apply pass, else we get:  Error: Status 200: Unable to modify the attribute because
+      # the attribute is read-only and depends on other attributes. [IDRAC.2.4.SYS410]
+      # TBD: Need to work out how to do this in two passes.
+
+      update_boot_mode = current_boot_mode != new_boot_mode
+      update_hdd_placeholder = current_hdd_placeholder != "Enabled"
+
+      if update_boot_mode:
+         patch_attributes["BootMode"] = new_boot_mode
+      if update_hdd_placeholder and not update_boot_mode:
+         patch_attributes["HddPlaceholder"] = "Enabled"
+
+      if not (update_boot_mode or update_hdd_placeholder):
+         blurt("[%s] Current boot mode is already %s." % (machine, current_boot_mode))
+         return False
+
+      settings_id = self.target_res["@Redfish.Settings"]["SettingsObject"]["@odata.id"]
+
+      patch_body = {
+         "Attributes": patch_attributes
+      }
+
+      bmc_conn.update_resource_by_id(settings_id, patch_body)
+
+      # Fetch the Settings resource after patching, to see if anything is pending or not.
+      # If not, no changes were made so no need to trigger a config job.
+
+      settings_res = bmc_conn.get_resource(settings_id)
+      pending_changes = settings_res["Attributes"]
+      if not pending_changes:
+         dbg("[%s] No changes are pending after making update.  No need for config task." % machine, level=2)
+         return False
+
+      # Changes are pending.  Submit the pending task.
+
+      sys_mgr_res = bmc_conn.get_system_manager_resource()
+      task_target = sys_mgr_res["@odata.id"] + "/Jobs"
+      task_body = {
+         "TargetSettingsURI": settings_id
+      }
+
+      self.task_target = task_target
+      self.task_body   = task_body
+
+      return True
+
+   # Pre-submit, post-submit and post-completion handles that power the machine
+   # machine off before submit, then power it on after submit to allow the task
+   # to run, and then finallly power the machine offf again when done.
+
+   @classmethod
+   def announce_pre_submit_pass(self):
+      blurt("Powering the machines off.")
+
+   def pre_submit(self):
+      return self.do_power_action("Off")
+
+   @classmethod
+   def announce_post_submit_pass(self):
+      blurt("Powering the machines on.")
+
+   def post_submit(self):
+      return self.do_power_action("On")
+
+   @classmethod
+   def announce_post_completion_pass(self):
+      blurt("Powering all machines off.")
+      return
+
+   def post_completion(self):
+      return self.do_power_action("Off")
+
+   def get_task_target(self):
+      # Task target found/set during pre_check() or pre_launch()
+      return self.task_target
+
+
+def main():
+
+   global new_boot_mode
+
+   set_dbg_volume_level(0)
+
+   boot_mode_choices = ["uefi", "bios"]
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("mode", choices=boot_mode_choices)
+   parser.add_argument("machines", nargs="+")
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args          = parser.parse_args()
+   new_boot_mode = args.mode .lower().capitalize()
+   machines      = args.machines
+
+   runner = TaskRunner(machines, args, SetBootModeTask, None)
+   runner.run()
+
+   exit(0)
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+
