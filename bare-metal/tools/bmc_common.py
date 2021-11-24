@@ -29,11 +29,15 @@ def dbg_echo_resource(name_line_pfx, res, level=1):
 
 
 class BMCError(Exception):
+
    def __init__(self, msg=None):
       self.message = msg
 
    def __str__(self):
-      return self.message
+      if self.message:
+         return self.message
+      else:
+         return "<No Message>"
 
 
 class BMCRequestError(BMCError):

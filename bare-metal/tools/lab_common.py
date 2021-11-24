@@ -4,14 +4,16 @@
 # Assumes: Python 3.6+
 
 import json
-import sys
-
 import os
+import sys
 import yaml
+
+from threading import Thread, Lock, Event
 
 from misc_utils import *
 from bmc_common import *
 
+db_loading_lock = Lock()
 
 # --- Lab-tailored BMC Classes ---
 
@@ -98,7 +100,8 @@ class LabBMCConnection(object):
       self.get_system_resource         = self.connection.get_this_system_resource
       self.get_system_manager_resource = self.connection.get_this_system_manager_resource
 
-      self.update_resource_by_id       = self.connection.update_resource_by_id
+      self.update_resource       = self.connection.update_resource
+      self.update_resource_by_id = self.connection.update_resource_by_id
 
       self.start_task     = self.connection.start_task
       self.get_task       = self.connection.get_task
@@ -140,7 +143,7 @@ class LabBMCConnection(object):
 
 machine_info = None
 
-def _load_machine_info_db(for_std_user=None):
+def _load_machine_info_db_inner(for_std_user=None):
 
    global machine_info
 
@@ -207,6 +210,16 @@ def _load_machine_info_db(for_std_user=None):
 
    except KeyError:
       die("Machine info db not as expected (bmc data missing/wrong).")
+
+def _load_machine_info_db(for_std_user=None):
+
+   # Wrap db-loading with a lock to make this thread safe.
+
+   global machine_info
+   with db_loading_lock:
+      if machine_info is not None:
+         return
+      _load_machine_info_db_inner(for_std_user)
 
 def get_machine_entry(machine_name, for_std_user=None, use_default_bmc_info=False):
 
@@ -289,7 +302,355 @@ def adjust_task_resource(task_res):
 
 
 # Task orchestrator that runs running a given task/job across a set of machines.
-# Task particulars are specified via a passed task-customization class.
+# Task particulars are specified via a passed task-customization class.  Runs the steps
+# in phases/passes across the machine, optionally doing things in parallel via threading.
+#
+# Terminology:
+#
+# - Task   = The class/object that describes what is to be done in each pass.
+#
+# - Thread = A Python Threading object that executes a task method/methods (for a
+#            particular machine) in parallel with other machines.
+
+# These _TR_ classes are thread classes to premit multi-threading.
+
+class _TR_ConnectAndValidate(Thread):
+
+    def __init__(self, machine, connection_args, the_task_class,
+                       task_arg=None, default_to_admin=False):
+       Thread.__init__(self)
+       self.machine = machine
+       self.connection_args = connection_args
+       self.the_task_class = the_task_class
+       self.task_arg = task_arg
+       self.default_to_admin = default_to_admin
+
+    def run(self):
+
+       machine = self.machine
+
+       blurt("Opening BMC connection and doing verification.", prefix=machine)
+       bmc_conn = LabBMCConnection.create_connection(machine, self.connection_args,
+                                                     default_to_admin= self.default_to_admin)
+
+       self._task = self.the_task_class(machine, bmc_conn, self.task_arg)
+       self._pre_check_ok = self._task.pre_check()
+
+    def task(self):
+       return self._task
+
+    def pre_check_ok(self):
+       return self._pre_check_ok
+
+#
+
+class _TR_PrepareTaskRequest(Thread):
+
+    def __init__(self, task, announce_actions):
+       Thread.__init__(self)
+       self._task   = task
+       self.machine = task.get_machine()
+
+    def run(self):
+       self._task_is_needed = self._task.prepare_task_request()
+       if not self._task_is_needed:
+          blurt("No task is necessary.", prefix=self.machine)
+
+    def task(self):
+       return self._task
+
+    def task_is_needed(self):
+       return self._task_is_needed
+
+class _TR_RunTask(Thread):
+
+   def __init__(self, task, announce_actions):
+      Thread.__init__(self)
+      self._task   = task
+      self.machine = task.get_machine()
+      self.announce_actions = announce_actions
+
+      self._task_has_ended = False
+
+      self._testing = False
+      self.dummy_task_id       = "DUMMY-TASK-ID"
+      self.dummy_task_check_nr = 0
+
+
+   def task(self):
+      return self._task
+
+   def ok(self):
+      return self._ok
+
+   def _set_ok(self, is_ok):
+      self._ok = is_ok
+
+   def task_has_ended(self):
+      return self._task_has_ended
+
+   # Run() is called when we are running the task in a multhreading-enabled way.  It runs
+   # all of the phases for a given machine, using the various do_*() methods to do si.
+   # The do_*() methods are called individually from external (to this class) orchestration
+   # logic when we're not operatoring in a multithreading mode.
+   #
+   # Its a shame that there is some duplication betweeh what run() does and what the
+   # non-multithreading orchestration does, but the present author hasn't figured out a
+   # better way to handle this (yet).
+
+   def run(self):
+
+      machine = self.machine
+      task    = self._task
+
+      sleeper = Event()
+
+      idrac_pause_time        = 15 if not self._testing else 2
+      check_status_pause_time = 15 if not self._testing else 2
+
+      # Run the pre-submit phase, pausing afterwards if requeted.
+
+      pause = self.do_pre_submit()
+      if not self._ok:
+         return
+      if pause:
+         blurt("Pausing a bit to allow iDRAC to catch up.", prefix=machine)
+         sleeper.wait(idrac_pause_time) # Really gross
+
+      # Run the submit phase.
+
+      self.do_submit()
+      if not self._ok:
+         return
+      blurt("Pausing a bit to allow iDRAC to catch up.", prefix=machine)
+      sleeper.wait(idrac_pause_time)  # Really gross.
+
+      # Run the post-submit phase.
+
+      pause = self.do_post_submit()
+      if not self._ok:
+         return
+      if pause:
+         blurt("Pausing a bit to allow iDRAC to catch up.", prefix=machine)
+         sleeper.wait(idrac_pause_time) # Really gross
+
+      # Check on status periodically until task is done.
+
+      has_ended = False
+      while not has_ended:
+         has_ended = self.check_task_status()
+         if not has_ended:
+            sleeper.wait(check_status_pause_time)
+      if not self.ok():
+         return
+
+      # Report on completion.
+
+      self.report_on_completion()
+      if not self.ok():
+         return
+
+      # Run the post-completion phase.
+
+      self.do_post_completion()
+
+      # All done for this machine/task/thread.
+
+   def _do_pre_or_post_phase(self, phase_name, announce_method, phase_method):
+
+      task    = self._task
+      machine = self.machine
+
+      self._set_ok(True)
+
+      try:
+         if self.announce_actions:
+            announce_method(machine=machine)
+         if not self._testing:
+            return phase_method()
+         else:
+            blurt("TESTING: No-op'ing %s call." % phase_name, prefix=machine)
+            return True
+      except BMCError as exc:
+         emsg(str(exc))
+         blurt("Abandoning futher action due to preceeding errors.", prefix=machine)
+         self._set_ok(False)
+         return False
+
+   def do_pre_submit(self):
+
+      # Perform pre-submit pass, intnedned to get the machine into whatever
+      # pre-task-submit state is required if more than power control is needed.
+
+      task = self._task
+      return self._do_pre_or_post_phase("pre-submit", task.announce_pre_submit_pass, task.pre_submit)
+
+   def do_submit(self):
+
+      # Submit the BMC task request.
+
+      task    = self._task
+      machine = self.machine
+
+      bmc_conn        = task.get_bmc_conn()
+
+      self._set_ok(False)
+
+      try:
+         task_target = task.get_task_target()
+         task_body   = task.get_task_body()
+
+         if task_target is None:
+            reason = "No task target set"
+            blurt("Abaonding further action: %s." % reason, prefix=machine)
+            self._set_ok(False)
+         else:
+            if self.announce_actions:
+               short_task_name = task.get_short_task_name()
+               blurt("Submitting %s task." % short_task_name, prefix=machine)
+            if not self._testing:
+               task_id = bmc_conn.start_task(task_target, task_body)
+            else:
+               blurt("TESTING: No-op'ing BMC task submission.", prefix=machine)
+               task_id = self.dummy_task_id
+            dbg("Task id: %s" % task_id, level=3)
+            task.set_task_id(task_id)
+            self._set_ok(True)
+
+      except BMCRequestError as exc:
+         emsg("Request error: %s" % exc, prefix=machine)
+         reason = "Could not submit %s task" % short_task_name
+         blurt("Abaonding further action: %s." % reason, prefix=machine)
+         self._set_ok(False)
+
+   def do_post_submit(self):
+
+      # Perform post-submit pass, intnedned to niudge the machine in whatever
+      # way needed to get it to run the pending tasks, for example powering them on.
+
+      task = self._task
+      return self._do_pre_or_post_phase("post-submit", task.announce_post_submit_pass, task.post_submit)
+
+   # For Testing: Returns a dummy BMC Task resource, sufficient for the
+   #  completion/status checking we do.
+
+   def _mfg_bmc_task_res(self):
+
+      self.dummy_task_check_nr += 1
+
+      if self.dummy_task_check_nr == 1:
+         task_state = "Pending"
+         task_status = "N/A"
+         pct_complete = 0
+      elif self.dummy_task_check_nr == 2:
+         task_state = "Starting"
+         task_status = "N/A"
+         pct_complete = 0
+      elif self.dummy_task_check_nr == 3:
+         task_state = "Running"
+         task_status = "N/A"
+         pct_complete = 33
+      elif self.dummy_task_check_nr == 4:
+         task_state = "Running"
+         task_status = "N/A"
+         pct_complete = 66
+      elif self.dummy_task_check_nr == 5:
+         task_state = "Completed"
+         task_status = "OK"
+         pct_complete = 100
+
+      bmc_task_res = {
+         "TaskState":       task_state,
+         "TaskStatus" :     task_status,
+         "PercentComplete": pct_complete
+      }
+
+      return bmc_task_res
+
+   def check_task_status(self):
+
+      if self._task_has_ended:
+         return self._task_has_ended
+
+      task    = self._task
+      machine = self.machine
+
+      bmc_conn = task.get_bmc_conn()
+      task_id  = task.get_task_id()
+
+      self._set_ok(True)
+
+      try:
+         if task_id != self.dummy_task_id:
+            bmc_task_res = bmc_conn.get_task(task_id)
+         else:
+            bmc_task_res = self._mfg_bmc_task_res()
+         adjust_task_resource(bmc_task_res)
+         if task_has_ended(bmc_task_res):
+            blurt("Task has ended.", prefix=task.machine)
+            self._task_has_ended = True
+            task.ending_task_res = bmc_task_res ## Should use a setter ##
+         else:
+            bmc_task_state = bmc_task_res["TaskState"]
+
+            if bmc_task_state == "":
+               # Dell iDRAC seems to sometimes provide no task state, for example
+               # when running Import-Configuration jobs (MessageId IDRAC.2.4.SYS034).
+               # Use the job state from the Dell Oem info in these cases if we can
+               # find same.
+               try:
+                  bmc_task_state = "%s*" % bmc_task_res["Oem"]["Dell"]["JobState"]
+               except KeyError:
+                  bmc_task_state = "???"
+
+            if bmc_task_state == "Pending":
+               blurt("Task is scheduled/pending.", prefix=machine)
+            elif bmc_task_state == "Starting":
+               # On Dell iDRAC, it seems tasks remaining in Starting while the system is
+               # going through its power-on initialization.  Then the task transitions
+               # to running when LC has control.
+               blurt("Machine is still starting up.", prefix=machine)
+            else:
+               bmc_tasK_pct_complete = bmc_task_res["PercentComplete"]
+               blurt("Task still in progress: %s (%d%% complete)." %
+                     (bmc_task_state, bmc_tasK_pct_complete), prefix=machine)
+
+      except BMCRequestError as exc:
+         emsg("BMC request error: %s" % exc, prefix=machine)
+         self._task_has_ended = True
+         task.ending_task_res = None
+         blurt("Abaonding further action: %s." % reason, prefix=machine)
+         self._set_ok(False)
+
+      return self._task_has_ended
+
+   def report_on_completion(self):
+
+      task    = self._task
+      machine = self.machine
+
+      bmc_task_res = task.ending_task_res
+      if bmc_task_res is not None:
+         bmc_task_status = bmc_task_res["TaskStatus"]
+         bmc_task_state = bmc_task_res["TaskState"]
+         if bmc_task_state == "Completed":
+            short_task_name = task.get_short_task_name()
+            blurt("Task %s has comopleted successfully." % short_task_name, prefix=machine)
+         else:
+            blurt("Task %s has failed.  Ending state/status: %s/%s" %
+                  (short_task_name, bmc_task_state, bmc_task_status), prefix=machine)
+      else:
+         blurt("Task %s state is unknown due to previous errors." % short_task_name, prefix=machine)
+
+   def do_post_completion(self):
+
+      # Perform post-completion phase, intnedned to get the machine into whatever post-
+      # completion state is desired, such as powering off again if the task needed to
+      # leave the machine powered on.
+
+      task = self._task
+      return self._do_pre_or_post_phase("post-completion", task.announce_post_completion_pass, task.post_completion)
+
 
 class TaskRunner:
 
@@ -302,212 +663,199 @@ class TaskRunner:
       self.task_arg         = task_arg
       self.default_to_admin = default_to_admin
 
+      self.multi_threaded = the_task_class.is_multi_thread_safe()
+
+      self._testing = False
+
       self.tasks = dict()
 
+   # Run all of the run() methods of a collection of thread objects, either serially
+   # or on parallel threads if multi_threading is enabled.
+
+   def _run_threads(self, threads):
+      if self.multi_threaded:
+         for machine in list(threads.keys()):
+            threads[machine].start()
+         for machine in list(threads.keys()):
+            threads[machine].join()
+      else:
+         for machine in list(threads.keys()):
+            threads[machine].run()
+      return threads
+
+   def _create_threads_for_tasks(self, thread_class, tasks):
+      threads = dict()
+      for machine in list(tasks.keys()):
+         threads[machine] = thread_class(tasks[machine], self.multi_threaded)
+      return threads
+
+   # Create thread objects for all of the specified tasks, running their run() methods either
+   # serially or in paralle if multi-threading is enabled.
+
+   def _create_and_run_threads_for_tasks(self, thread_class, tasks):
+      threads = self._create_threads_for_tasks( thread_class, tasks)
+      self._run_threads(threads)
+      return threads
+
+   @staticmethod
+   def _absndon_failed_threads(threads):
+      for machine in list(threads.keys()):
+         if not threads[machine].ok():
+            # Msg re abandonment already blurted as part of do_<something> processing.
+            del threads[machine]
+
+   @staticmethod
+   def _reconsile_tasks_with_threads(tasks, threads):
+      for machine in list(tasks.keys()):
+         if machine not in threads:
+            del tasks[machine]
+
+   def _do_pass(self, threads, phase_name, announce_method, phase_method, idrac_pause_time=None):
+
+      # Blurt out info on the pass we are about to run.
+      announce_method()
+
+      pause_after_pass = False
+      for machine in list(threads.keys()):
+         t = threads[machine]
+         pause = phase_method(t)
+         pause_after_pass = pause_after_pass or (pause and t.ok())
+
+      # Abandon threads/tasks that didn't successfully perform pre-submit().
+      self._absndon_failed_threads(threads)
+
+      if idrac_pause_time and pause_after_pass and threads:
+         blurt("Pausing a bit to allow the iDRACs to catch up.")
+         time.sleep(idrac_pause_time)  # Really gross.
+
    def run(self):
+
+      the_task_class = self.the_task_class
+
+      idrac_pause_time        = 15 if not self._testing else 2
+      check_status_pause_time = 15 if not self._testing else 2
 
       # Open BMC connections to each of the machines and do quick pre-checks.
       # If pre-checks fail for any machine, we abort the whole thing.
 
-      errors_occurred = False
+      threads = dict()
       for machine in self.machines:
+         threads[machine] = _TR_ConnectAndValidate(machine, self.connection_args, self.the_task_class,
+                                                   self.task_arg, default_to_admin=self.default_to_admin)
+      #
 
-         blurt("[%s] Opening BMC connectino and doing verification." % machine)
+      self._run_threads(threads)
 
-         bmc_conn = LabBMCConnection.create_connection(machine, self.connection_args,
-                                                       default_to_admin=self.default_to_admin)
-         this_task = self.the_task_class(machine, bmc_conn, self.task_arg)
-
-         if this_task.pre_check():
-            self.tasks[machine] = this_task
+      errors_occurred = False
+      for machine in list(threads.keys()):
+         t = threads[machine]
+         if t.pre_check_ok():
+            self.tasks[machine] = t.task()
          else:
             errors_occurred = True
-      #
+
       if errors_occurred:
          blurt("Aborting because one or more machines failed verification checks.")
          return
 
-      # Give the tasks a chance to prepare input, or decline to do so, before
+      # Give all the tasks a chance to prepare input, or decline to do so, before
       # we start any real work.
 
-      tasks_are_needed = False
+      threads = self._create_and_run_threads_for_tasks(_TR_PrepareTaskRequest, self.tasks)
 
-      for machine in list(self.tasks.keys()):
-         task = self.tasks[machine]
-         if task.prepare_task_request():
+      tasks_are_needed = False
+      for machine in list(threads.keys()):
+         t = threads[machine]
+         if t.task_is_needed():
             tasks_are_needed = True
          else:
-            blurt("[%s] No task is necessary for this machine." % machine)
             del self.tasks[machine]
       #
       if not tasks_are_needed:
          blurt("No tasks are needed.")
          return
 
-      # Perform pre-submit pass, intnedned to get every machine into whatever
-      # pre-task-submit state is required if more than power control is needed.
+      threads = self._create_threads_for_tasks(_TR_RunTask, self.tasks)
 
-      self.the_task_class.announce_pre_submit_pass()
-      pause_after_pass = False
-      for machine in list(self.tasks.keys()):
-         task = self.tasks[machine]
-         try:
-            pause_after_pass = task.pre_submit() or pause_after_pass
-         except BMCError as exc:
-            emsg(str(exc))
-            blurt("Abandoning futher action for %s due to preceeding errors." % machine)
-            del self.tasks[machine]
-      #
-      if not self.tasks:
-         blurt("No machines successfully estbalished pre-submit conditions.")
-         return
+      if self.multi_threaded:
 
-      if pause_after_pass:
+         # Run the threads that perform all of the phases in sequence and exit
+         #  when all phases are done or the task for the machine is abandoned
+         # due to errors.
+
+         self._run_threads(threads)
+
+      else:
+
+         # Not using threads, so we run the phases in passes across all
+         # of the machines.
+
+         the_tr_class = _TR_RunTask
+
+         # Perform pre-submit pass across all machines.
+
+         self._do_pass(threads, "pre-submit", the_task_class.announce_pre_submit_pass,
+                       the_tr_class.do_pre_submit, idrac_pause_time)
+         if not threads:
+            blurt("No machines successfully estbalished pre-submit conditions.")
+            return
+
+         # Submit the task requests.
+
+         short_task_name = self.the_task_class.get_short_task_name()
+         blurt("Submitting %s task requests." % short_task_name)
+
+         for machine in list(threads.keys()):
+            threads[machine].do_submit()
+
+         # Abandon threads/tasks that didn't successfully submit a BMC task.
+         self._absndon_failed_threads(threads)
+         if not threads:
+            blurt("No %s tasks were started." % short_task_name)
+            return
+
          blurt("Pausing a bit to allow the iDRACs to catch up.")
-         time.sleep(15)  # Really gross.
+         time.sleep(idrac_pause_time)  # Really gross.
 
-      # Submit the task requests
+         # Perforom post-submit pass across all of the machines.
 
-      short_task_name = self.the_task_class.get_short_task_name()
-      blurt("Submitting %s task requests." % short_task_name)
+         self._do_pass(threads, "post-submit", the_task_class.announce_post_submit_pass,
+                       the_tr_class.do_post_submit, idrac_pause_time)
+         if not threads:
+            blurt("No machines successfully estbalished post-submit conditions.")
+            return
 
-      for machine in list(self.tasks.keys()):
-         task = self.tasks[machine]
-         bmc_conn = task.get_bmc_conn()
+         print("Waiting for submmitted %s tasks to complete." % short_task_name)
+         pending_tasks = {m:t for m, t in threads.items()}
 
-         try:
-            task_target = task.get_task_target()
-            task_body   = task.get_task_body()
-
-            if task_target is None:
-               reason = "No task target set"
-               blurt("[%s] Abaonding further action for machine: %s." % (machine, reason))
-               del self.tasks[machine]
-            else:
-               blurt("   Submitting task on %s." % machine)
-               task_id = bmc_conn.start_task(task_target, task_body)
-               dbg("Task id: %s" % task_id, level=3)
-               task.set_task_id(task_id)
-         except BMCRequestError as exc:
-            emsg("[%s] Request error: %s" % (machine, exc))
-            reason = "Could not submit %s task" % short_task_name
-            blurt("[%s] Abaonding further action for machine: %s." % (machine, reason))
-            del self.tasks[machine]
-      #
-
-      if not self.tasks:
-         blurt("No %s tasks were successfully started." % short_task_name)
-         return
-
-      blurt("Pausing a bit to allow the iDRACs to catch up.")
-      time.sleep(15)  # Really gross.
-
-      # Perform post-submit pass, intnedned to niudge every machine in whatever
-      # way needed to get them to run the pending tasks, for example powering them on.
-
-      self.the_task_class.announce_post_submit_pass()
-      pause_after_pass = False
-      for machine in list(self.tasks.keys()):
-         task = self.tasks[machine]
-         try:
-            pause_after_pass = task.post_submit() or pause_after_pass
-         except BMCError as exc:
-            emsg("[%s] %s" % (machine, str(exc)))
-            blurt("[%s] Abandoning futher action for machine due to preceeding errors." % machine)
-            del self.tasks[machine]
-      #
-      if not self.tasks:
-         blurt("No machines successfully estbalished pre-submit conditions.")
-         return
-
-      if pause_after_pass:
-         blurt("Pausing a bit to allow the iDRACs to catch up.")
-         time.sleep(15)  # Really gross.
-
-      # Wait until the tasks complete or fail on all of the machines.
-
-      print("Waiting for submmitted %s tasks to complete." % short_task_name)
-      pending_tasks = {m:t for m, t in self.tasks.items()}
-
-      while pending_tasks:
-         for machine in list(pending_tasks.keys()):
-            task = pending_tasks[machine]
-            bmc_conn = task.get_bmc_conn()
-            task_id  = task.get_task_id()
-
-            try:
-               task_res = bmc_conn.get_task(task_id)
-               adjust_task_resource(task_res)
-               if task_has_ended(task_res):
-                  blurt("[%s] Task for machine has ended." % task.machine)
+         while pending_tasks:
+            for machine in list(pending_tasks.keys()):
+               t = pending_tasks[machine]
+               t_has_ended = t.check_task_status()
+               if t_has_ended:
                   del pending_tasks[machine]
-                  task.ending_task_res = task_res ## Should use a setter ##
-               else:
-                  task_state = task_res["TaskState"]
+            #
+            if len(pending_tasks) > 0:
+               time.sleep(check_status_pause_time)
 
-                  if task_state == "":
-                     # Dell iDRAC seems to sometimes provide no task state, for example
-                     # when running Import-Configuration jobs (MessageId IDRAC.2.4.SYS034).
-                     # Use the job state from the Dell Oem info in these cases if we can
-                     # find same.
-                     try:
-                        task_state = "%s*" % task_res["Oem"]["Dell"]["JobState"]
-                     except KeyError:
-                        task_state = "???"
+         # Abandon threads/tasks that didn't get to end-of-task cleanly.
+         self._absndon_failed_threads(threads)
 
-                  if task_state == "Pending":
-                     blurt("[%s] Task is scheduled/pending." % machine)
-                  elif task_state == "Starting":
-                     # On Dell iDRAC, it seems tasks remaining in Starting while the system is
-                     # going through its power-on initialization.  Then the task transitions
-                     # to running when LC has control.
-                     blurt("[%s] Machine is still starting up." % machine)
-                  else:
-                     tasK_pct_complete = task_res["PercentComplete"]
-                     blurt("[%s] Task still in progress: %s (%d%% complete)." %
-                           (machine, task_state, tasK_pct_complete))
+         # All tasks have ended.  Report on completion.
 
-            except BMCRequestError as exc:
-               emsg("[%s] BMC request error: %s" % (machine, exc))
-               del pending_tasks[machine]
-               task.ending_task_res = None
-               blurt("[%s] Abaonding further action for machine: %s." % (machine, reason))
-               del self.tasks[machine]
-         #
-         if len(pending_tasks) > 0:
-            time.sleep(15)
-      #
+         for machine in list(threads.keys()):
+            t = threads[machine]
+            t.report_on_completion()
 
-      # All tasks have ended.  Report on completion.
+         # Prtgotm yhr pody-completion pass across all of the machines.
 
-      for machine in list(self.tasks.keys()):
-         task = self.tasks[machine]
-         task_res = task.ending_task_res
-
-         if task_res is not None:
-            task_status = task_res["TaskStatus"]
-            task_state = task_res["TaskState"]
-            if task_state == "Completed":
-               blurt("[%s] Task %s has comopleted successfully." % (machine, short_task_name))
-            else:
-               blurt("[%s] Task %s has failed.  Ending state/status: %s/%s" %
-                     (machine, short_task_name, task_state, task_status))
-         else:
-            blurt("[%s] Task %s state is unknown due to previous errors." % (machine, short_task_name))
-      #
-
-      # Perform post-completion pass, intnedned to get every machine into whatever post-
-      # completion state is desired, such as powering off again if the task needed to
-      # leave the machine powered on.
-
-      self.the_task_class.announce_post_completion_pass()
-      for machine in list(self.tasks.keys()):
-         task = self.tasks[machine]
-         task.post_completion()
+         self._do_pass(threads, "post-completion", the_task_class.announce_post_completion_pass,
+                       the_tr_class.do_post_completion)
       #
 
       blurt("Finished.")
 
+# Base class for task classes that TaskRunner can run.
 
 class RunnableTask:
 
@@ -518,6 +866,9 @@ class RunnableTask:
 
       self.task_target = None
       self.task_body   = None
+
+   def get_machine(self):
+      return self.machine
 
    def get_bmc_conn(self):
       return self.bmc_conn
@@ -542,21 +893,27 @@ class RunnableTask:
       return self.task_body
 
    @classmethod
-   def announce_pre_submit_pass(self):
+   def is_multi_thread_safe(self):
+      # Override and return True if a concrete Task class is thread-safe, i.e. can
+      # tolerate having actions for the machines run in parallel on multiple threads.
+      return False
+
+   @classmethod
+   def announce_pre_submit_pass(self, machine=None):
       return
 
    def pre_submit(self):
       return False  # Didn't do anything, so no BMC-catch-up pausing needed.
 
    @classmethod
-   def announce_post_submit_pass(self):
+   def announce_post_submit_pass(self, machine=None):
       return
 
    def post_submit(self):
       return False  # Didn't do anothing, so no BMC-catch-up pausing needed.
 
    @classmethod
-   def announce_post_completion_pass(self):
+   def announce_post_completion_pass(self, machine=None):
       return
 
    def post_completion(self):
@@ -572,14 +929,14 @@ class RunnableTask:
          current_power_state = bmc_conn.get_power_state()
          dbg("[%s] Machine power state: %s" % (machine, current_power_state), level=3)
          if current_power_state != desired_power_state:
-            print("   [%s] Powering machine %s." % (machine, desired_power_state))
+            blurt("Powering machine %s." % desired_power_state, prefix=machine)
             if desired_power_state == "Off":
                bmc_conn.system_power_off()
             else:
                bmc_conn.system_power_on()
             did_something = True
          else:
-            print("   [%s] Machine was already Powered %s." % (machine, desired_power_state))
+            blurt("Machine was already Powered %s." % desired_power_state, prefix=machine)
 
       except BMCRequestError as exc:
          m = "Could not check/control power for machine  %s: %s" % (machine, exc)

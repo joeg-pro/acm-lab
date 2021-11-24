@@ -103,28 +103,40 @@ class WipeDiskTask(DellSpecificTask):
       body["InitializeType"] = "Fast"
       return body
 
+   @classmethod
+   def is_multi_thread_safe(self):
+      return True
+
    # Pre-submit, post-submit and post-completion handles that power the machine
    # machine off before submit, then power it on after submit to allow the task
    # to run, and then finallly power the machine offf again when done.
 
    @classmethod
-   def announce_pre_submit_pass(self):
-      blurt("Powering the machines off.")
+   def announce_pre_submit_pass(self, machine=None):
+      if machine:
+         blurt("Powering machine off.", prefix=machine)
+      else:
+         blurt("Powering the machines off.")
 
    def pre_submit(self):
       return self.do_power_action("Off")
 
    @classmethod
-   def announce_post_submit_pass(self):
-      blurt("Powering the machines on.")
+   def announce_post_submit_pass(self, machine=None):
+      if machine:
+         blurt("Powering machine on.", prefix=machine)
+      else:
+         blurt("Powering the machines on.")
 
    def post_submit(self):
       return self.do_power_action("On")
 
    @classmethod
-   def announce_post_completion_pass(self):
-      blurt("Powering all machines off.")
-      return
+   def announce_post_completion_pass(self, machine=None):
+      if machine:
+         blurt("Powering machine off.", prefix=machine)
+      else:
+         blurt("Powering all machines off.")
 
    def post_completion(self):
       return self.do_power_action("Off")
