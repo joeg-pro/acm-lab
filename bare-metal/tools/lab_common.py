@@ -376,7 +376,6 @@ class _TR_RunTask(Thread):
       self.dummy_task_id       = "DUMMY-TASK-ID"
       self.dummy_task_check_nr = 0
 
-
    def task(self):
       return self._task
 
@@ -669,8 +668,8 @@ class TaskRunner:
 
       self.tasks = dict()
 
-   # Run all of the run() methods of a collection of thread objects, either serially
-   # or on parallel threads if multi_threading is enabled.
+   # Run all of the run() methods of a collection of thread objects, either
+   # seriall or on parallel threads if multi_threading is enabled.
 
    def _run_threads(self, threads):
       if self.multi_threaded:
@@ -683,14 +682,16 @@ class TaskRunner:
             threads[machine].run()
       return threads
 
+   # Create thread objects for all of the specified tasks.
+
    def _create_threads_for_tasks(self, thread_class, tasks):
       threads = dict()
       for machine in list(tasks.keys()):
          threads[machine] = thread_class(tasks[machine], self.multi_threaded)
       return threads
 
-   # Create thread objects for all of the specified tasks, running their run() methods either
-   # serially or in paralle if multi-threading is enabled.
+   # Create thread objects for all of the specified tasks, running their run() methods
+   # either serially or in paralle if multi-threading is enabled.
 
    def _create_and_run_threads_for_tasks(self, thread_class, tasks):
       threads = self._create_threads_for_tasks( thread_class, tasks)
