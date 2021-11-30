@@ -128,7 +128,7 @@ def main():
             if nf_eth is not None:
                mac_addr = nf_eth["MACAddress"]
                dbg("MAC Address: %s" % mac_addr, indent_level=2, level=2)
-               net_port["mac_addr"] = mac_addr
+               net_port["mac_addr"] = mac_addr.lower()
 
          elif nf_type == "FibreChannel":
             dbg("FiberChannel function %s:" % nf_just_id, indent_level=1, level=2)
@@ -317,11 +317,22 @@ def main():
    if is_single_node_machine:
       cluster_networking = dict()
       entry["cluster_internal_networking"] = cluster_networking
-      cn_info = dict()
-      cluster_networking["nic2"] = cn_info
-      cn_info["for_nic_id"] = 2
-      cn_info["dhcp_ip_address"] = "172.31.0.%s" % ip_addr_last_octet
-      cn_info["fqhn"] = "%s.cluster.internal" % fog_name
+
+      # We do not nomrally have fixed DHCP for NIC1 (provisioning) but we
+      # add info in for it because we use NIC1 as the main NIC when we attach
+      # single-node machines to the Maint Slot.
+
+      cn_info_1 = dict()
+      cluster_networking["nic1"] = cn_info_1
+      cn_info_1["for_nic_id"] = 1
+      cn_info_1["dhcp_ip_address"] = "172.22.0.%s" % ip_addr_last_octet
+      cn_info_1["fqhn"] = "%s.provisioning.internal" % fog_name
+
+      cn_info_2 = dict()
+      cluster_networking["nic2"] = cn_info_2
+      cn_info_2["for_nic_id"] = 2
+      cn_info_2["dhcp_ip_address"] = "172.31.0.%s" % ip_addr_last_octet
+      cn_info_2["fqhn"] = "%s.cluster.internal" % fog_name
 
       entry["root_device_name"] = "/dev/sda"
 
