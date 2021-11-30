@@ -605,6 +605,834 @@ machines:
       dhcp_ip_address: 172.31.0.50
       fqhn: fog24.cluster.internal
 
+- name: fog25
+  service_tag: B9Z9NF3
+  bmc:
+    address: fog25-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog25-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:a8
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:a9
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:aa
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:ab
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.51
+      fqhn: fog25.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.51
+      fqhn: fog25.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog26
+  service_tag: BB08NF3
+  bmc:
+    address: fog26-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog26-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:3b:38
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:3b:39
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:3b:3a
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:3b:3b
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.52
+      fqhn: fog26.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.52
+      fqhn: fog26.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog27
+  service_tag: B9Z8NF3
+  bmc:
+    address: fog27-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog27-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:90
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:91
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:92
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:93
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.53
+      fqhn: fog27.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.53
+      fqhn: fog27.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog28
+  service_tag: B9ZFFF3
+  bmc:
+    address: fog28-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog28-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:b4
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:b5
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:b6
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:b7
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.54
+      fqhn: fog28.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.54
+      fqhn: fog28.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog29
+  service_tag: B9YCNF3
+  bmc:
+    address: fog29-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog29-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:42:c4
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:42:c5
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:42:c6
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:42:c7
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.55
+      fqhn: fog29.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.55
+      fqhn: fog29.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog30
+  service_tag: B9ZBNF3
+  bmc:
+    address: fog30-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog30-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:ac
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:ad
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:ae
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:af
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.56
+      fqhn: fog30.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.56
+      fqhn: fog30.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog31
+  service_tag: B9YBNF3
+  bmc:
+    address: fog31-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog31-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:3b:34
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:3b:35
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:3b:36
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:3b:37
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.57
+      fqhn: fog31.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.57
+      fqhn: fog31.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog32
+  service_tag: B9YGFF3
+  bmc:
+    address: fog32-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog32-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:42:e4
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:42:e5
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:42:e6
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:42:e7
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.58
+      fqhn: fog32.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.58
+      fqhn: fog32.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog33
+  service_tag: B9YHFF3
+  bmc:
+    address: fog33-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog33-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:3c:f0
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:3c:f1
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:3c:f2
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:3c:f3
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.59
+      fqhn: fog33.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.59
+      fqhn: fog33.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog34
+  service_tag: B9Z7NF3
+  bmc:
+    address: fog34-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog34-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:2c
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:2d
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:2e
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:2f
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.60
+      fqhn: fog34.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.60
+      fqhn: fog34.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog35
+  service_tag: BB07NF3
+  bmc:
+    address: fog35-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog35-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:db:0c
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:db:0d
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:db:0e
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:db:0f
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.61
+      fqhn: fog35.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.61
+      fqhn: fog35.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog36
+  service_tag: B9ZHFF3
+  bmc:
+    address: fog36-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog36-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:f4
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:f5
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:f6
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:f7
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.62
+      fqhn: fog36.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.62
+      fqhn: fog36.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog37
+  service_tag: B9ZCNF3
+  bmc:
+    address: fog37-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog37-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:3f:38
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:3f:39
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:3f:3a
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:3f:3b
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.63
+      fqhn: fog37.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.63
+      fqhn: fog37.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog38
+  service_tag: B9ZGFF3
+  bmc:
+    address: fog38-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog38-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:d1:f4
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:d1:f5
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:d1:f6
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:d1:f7
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.64
+      fqhn: fog38.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.64
+      fqhn: fog38.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog39
+  service_tag: B9Z6NF3
+  bmc:
+    address: fog39-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog39-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:da:ec
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:da:ed
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:da:ee
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:da:ef
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.65
+      fqhn: fog39.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.65
+      fqhn: fog39.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog40
+  service_tag: B9YFFF3
+  bmc:
+    address: fog40-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog40-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:42:2c
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:42:2d
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:42:2e
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:42:2f
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.66
+      fqhn: fog40.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.66
+      fqhn: fog40.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog41
+  service_tag: B9ZJFF3
+  bmc:
+    address: fog41-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog41-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4c:d2:84
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4c:d2:85
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4c:d2:86
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4c:d2:87
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.67
+      fqhn: fog41.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.67
+      fqhn: fog41.cluster.internal
+  root_device_name: /dev/sda
+
+- name: fog42
+  service_tag: B9YJFF3
+  bmc:
+    address: fog42-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: fog42-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/eno1
+      mac_address: 78:ac:44:4d:3a:ec
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/eno2
+      mac_address: 78:ac:44:4d:3a:ed
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+    nic3:
+      id: 3
+      type: ge
+      device_name: /dev/eno3
+      mac_address: 78:ac:44:4d:3a:ee
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic4:
+      id: 4
+      type: ge
+      device_name: /dev/eno4
+      mac_address: 78:ac:44:4d:3a:ef
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.68
+      fqhn: fog42.acm.lab.eng.rdu2.redhat.com
+  cluster_internal_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 172.31.0.68
+      fqhn: fog42.cluster.internal
+  root_device_name: /dev/sda
+
 - name: mist01
   bmc:
     address: mist01-drac.mgmt.acm.lab.eng.rdu2.redhat.com
@@ -639,3 +1467,4 @@ machines:
   bmc:
     address: vapor-02-drac.mgmt.acm.lab.eng.rdu2.redhat.com
     redfish: vapor-02-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
