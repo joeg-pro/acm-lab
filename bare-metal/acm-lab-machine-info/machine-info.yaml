@@ -550,6 +550,26 @@ machines:
   bmc:
     address: fog16-drac.mgmt.acm.lab.eng.rdu2.redhat.com
     redfish: fog16-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+  nics:
+    nic1:
+      id: 1
+      type: ge
+      device_name: /dev/en01
+      mac_address: 2c:ea:7f:e1:01:ca
+      connected_to_lab_network: false
+      use_for_lab_networking: false
+    nic2:
+      id: 2
+      type: ge
+      device_name: /dev/en02
+      mac_address: 2c:ea:7f:e1:01:cb
+      connected_to_lab_network: true
+      use_for_lab_networking: true
+  eng_lab_networking:
+    nic2:
+      for_nic_id: 2
+      dhcp_ip_address: 10.1.158.42
+      fqhn: fog16.acm.lab.eng.rdu2.redhat.com
   cluster_internal_networking:
     nic1:
       for_nic_id: 1
