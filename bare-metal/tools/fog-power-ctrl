@@ -55,7 +55,7 @@ class DoPowerActoin(Thread):
           msg = "Rebooting" if power_state == "On" else "Powering On"
           if is_multi:
              blurt("%s: %s" % (m, msg))
-          resp = bmc_conn.system_reboot(quiet=True)
+          resp = bmc_conn.system_reboot(quiet=True, force=True)
        else:
           emsg("Unrecognized actoin: %s" % action)
 

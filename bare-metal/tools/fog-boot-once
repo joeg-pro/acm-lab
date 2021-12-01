@@ -53,7 +53,7 @@ class DoOneTimeBoot(Thread):
           else:
              raise exc
 
-       bmc_conn.system_reboot(quiet=True)
+       bmc_conn.system_reboot(quiet=True, force=True)
        blurt("SYstem is rebooting for one-time %s boot." % boot_target, prefix=m)
 
 # Main:
