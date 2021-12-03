@@ -4,7 +4,29 @@
 # bare metal machines, using data in the "database" yaml.
 
 my_dir=$(dirname $(readlink -f $0))
+
+nic_nr=2
+opt_flags="12"
+
+while getopts "$opt_flags" OPTION; do
+   case "$OPTION" in
+      1) nic_nr=1
+         ;;
+      2) nic_nr=2
+         ;;
+      ?) exit 1
+         ;;
+   esac
+done
+shift "$(($OPTIND -1))"
+
 machine_names="$@"
+
+if [[ $nic_nr -eq 1 ]]; then
+   nic_name="nic1"
+else
+   nic_name="nic2"
+fi
 
 
 function extract {
@@ -18,7 +40,7 @@ function extract_raw {
 function emit_dhcpd_entry {
 
 cat << E-O-D
-  host $machine_name-nic2 { hardware ethernet $dhcpd_mac_address; fixed-address $dhcpd_fixed_ip; }
+  host $machine_name-$nic_name { hardware ethernet $dhcpd_mac_address; fixed-address $dhcpd_fixed_ip; }
 E-O-D
 }
 
@@ -35,13 +57,13 @@ for machine_name in $machine_names; do
    # Get MAC address for NIC 2 since that's the one connectd to the
    # slot's private data network.
 
-   dhcpd_mac_address=$(extract "$m_data" ".nics.nic2.mac_address")
+   dhcpd_mac_address=$(extract "$m_data" ".nics.$nic_name.mac_address")
 
    # Get the fixed IP addresses we've assigned to NIC 2 on the data
    # network for Slot 0.  That will be be thing we put into the
    # dhcpd template, for later customization based on actual slot.
 
-   dhcpd_fixed_ip=$(extract  "$m_data" ".cluster_internal_networking.nic2.dhcp_ip_address")
+   dhcpd_fixed_ip=$(extract  "$m_data" ".cluster_internal_networking.$nic_name.dhcp_ip_address")
 
   emit_dhcpd_entry
 
