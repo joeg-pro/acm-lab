@@ -1804,3 +1804,22 @@ machines:
     address: vapor-02-drac.mgmt.acm.lab.eng.rdu2.redhat.com
     redfish: vapor-02-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
 
+- name: mist06
+  bmc:
+    address: mist06-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist06-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: mist07
+  bmc:
+    address: mist07-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: mist07-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: steam01
+  bmc:
+    address: steam01-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: steam01-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
+
+- name: steam02
+  bmc:
+    address: steam02-drac.mgmt.acm.lab.eng.rdu2.redhat.com
+    redfish: steam02-drac.mgmt.acm.lab.eng.rdu2.redhat.com/redfish/v1/Systems/System.Embedded.1
