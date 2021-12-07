@@ -4,7 +4,7 @@
 
 # Author: J. M. Gdaniec, Apr 2021
 
-from bmc_common import *
+from lab_common import *
 
 import argparse
 import traceback
