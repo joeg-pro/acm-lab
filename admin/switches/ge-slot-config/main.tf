@@ -12,6 +12,8 @@ terraform {
 }
 
 provider junos {
+  # First switch in rack A36
+
   alias     = "sw_ge_1"
   ip        = "acm-2300-1g.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
@@ -19,6 +21,8 @@ provider junos {
 }
 
 provider junos {
+  # Second switch in rack A36
+
   alias     = "sw_ge_2"
   ip        = "acm-2300-1g-2.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
@@ -26,18 +30,42 @@ provider junos {
 }
 
 provider junos {
+  # First (only) switch in rack A37
+
   alias     = "sw_ge_3"
   ip        = "acm-2300-1g-3.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
 
+provider junos {
+  # First (only) switch in rack A38
+
+  alias     = "sw_ge_4"
+  ip        = "acm-2300-1g-4.mgmt.acm.lab.eng.rdu2.redhat.com"
+  username  = var.switch_username
+  password  = var.switch_password
+}
+
+provider junos {
+  # First (only) switch in rack A35. Acts as "root" switch.
+  # Note: Switch 5 has no slot-resident machines connected to it, so there is no
+  # further config for it in this TF.  But the provider is defined keep it handy.
+
+  alias     = "sw_ge_5"
+  ip        = "acm-2300-1g-5.mgmt.acm.lab.eng.rdu2.redhat.com"
+  username  = var.switch_username
+  password  = var.switch_password
+}
 
 #=== Configuration Info ===
 
 locals {
 
   # Machine to slot assignment:
+
+  # Note: Every machine needs to be assigned to some slot. Slot 49 is the
+  # "in the garage for maintenance" slot so assign to that if unused.
 
   machine_slot_assignments = {
     00 = ["fog_01", "fog_02", "fog_03", "fog_04", "fog_05", "fog_06"],
@@ -46,7 +74,10 @@ locals {
     06 = ["fog_19", "fog_20", "fog_21", "fog_22", "fog_23", "fog_24"],
     49 = ["fog_25", "fog_26", "fog_27", "fog_28", "fog_29", "fog_30",
           "fog_31", "fog_32", "fog_33", "fog_34", "fog_35", "fog_36",
-          "fog_37", "fog_38", "fog_39", "fog_40", "fog_41", "fog_42"]
+          "fog_37", "fog_38", "fog_39", "fog_40", "fog_41", "fog_42",
+          "fog_43", "fog_44", "fog_45", "fog_46", "fog_47", "fog_48",
+          "fog_49", "fog_50", "fog_51"]
+
   }
 
   unallocated_machines = ""
@@ -108,12 +139,25 @@ locals {
     fog_42 = {name="Fog42", nics=[1, 2], ports=[34, 35]}
   }
 
+  sw_ge_4_machine_connections = {
+    fog_43 = {name="Fog43", nics=[1, 2], ports=[0, 1]},
+    fog_44 = {name="Fog44", nics=[1, 2], ports=[2, 3]},
+    fog_45 = {name="Fog45", nics=[1, 2], ports=[4, 5]},
+    fog_46 = {name="Fog46", nics=[1, 2], ports=[6, 7]},
+    fog_47 = {name="Fog47", nics=[1, 2], ports=[8, 9]},
+    fog_48 = {name="Fog48", nics=[1, 2], ports=[10, 11]},
+    fog_49 = {name="Fog49", nics=[1, 2], ports=[12, 13]},
+    fog_50 = {name="Fog50", nics=[1, 2], ports=[14, 15]},
+    fog_51 = {name="Fog51", nics=[1, 2], ports=[16, 17]}
+  }
+
   # Note: Add map entries to local.machine_connections for any new switches.
 
   machine_connections = {
     sw_ge_1 = local.sw_ge_1_machine_connections
     sw_ge_2 = local.sw_ge_2_machine_connections
     sw_ge_3 = local.sw_ge_3_machine_connections
+    sw_ge_4 = local.sw_ge_4_machine_connections
   }
 
 }
@@ -218,6 +262,14 @@ resource junos_interface_physical sw_ge_1_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
 # ======== Switch 2 ========
@@ -231,6 +283,14 @@ resource junos_interface_physical sw_ge_2_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
 # ======== Switch 3 ========
@@ -244,5 +304,34 @@ resource junos_interface_physical sw_ge_3_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
+}
+
+# ======== Switch 4 ========
+
+resource junos_interface_physical sw_ge_4_port {
+
+  provider = junos.sw_ge_4
+
+  for_each = local.switch_port_configs["sw_ge_4"]
+    name         = each.key
+    description  = each.value.description
+    trunk        = length(each.value.vlans) > 1
+    vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
