@@ -26,6 +26,14 @@ resource junos_interface_physical sw_ge_1_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
 # ======== Switch 2 ========
@@ -55,6 +63,14 @@ resource junos_interface_physical sw_ge_2_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
 # ======== Switch 3 ========
@@ -84,6 +100,14 @@ resource junos_interface_physical sw_ge_3_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
 # ======== Switch 4 ========
@@ -113,6 +137,14 @@ resource junos_interface_physical sw_ge_4_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 
 # ======== Switch 5 ========
@@ -142,5 +174,13 @@ resource junos_interface_physical sw_ge_5_port {
     description  = each.value.description
     trunk        = length(each.value.vlans) > 1
     vlan_members = each.value.vlans
+    ether_opts {
+      auto_negotiation    = true
+      flow_control        = false
+      loopback            = false
+      no_auto_negotiation = false
+      no_flow_control     = false
+      no_loopback         = false
+    }
 }
 

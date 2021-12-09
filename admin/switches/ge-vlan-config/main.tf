@@ -130,17 +130,17 @@ locals {
   }
 
   sw_ge_5_non_slot_machines = {
-    vapor_01 = {name="Vapor01", nics=[2], ports=[0],  vlans=local.vlans_for_vsphere_hosts}
-    vapor_02 = {name="Vapor02", nics=[2], ports=[1],  vlans=local.vlans_for_vsphere_hosts}
-    steam_01 = {name="Steam01", nics=[2], ports=[2],  vlans=local.vlans_for_vsphere_hosts}
-    steam_02 = {name="Steam02", nics=[2], ports=[3],  vlans=local.vlans_for_vsphere_hosts}
-    mist_01 =  {name="Mist01",  nics=[2], ports=[4],  vlans=local.vlans_for_vsphere_hosts}
-    mist_02 =  {name="Mist02",  nics=[2], ports=[5],  vlans=local.vlans_for_vsphere_hosts}
-    mist_03 =  {name="Mist03",  nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
-    mist_04 =  {name="Mist04",  nics=[2], ports=[7],  vlans=local.vlans_for_vsphere_hosts}
-    mist_05 =  {name="Mist05",  nics=[2], ports=[8],  vlans=local.vlans_for_vsphere_hosts}
-    mist_06 =  {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_hosts}
-    mist_07 =  {name="Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
+    vapor_01 = {name="Future Vapor01", nics=[2], ports=[0],  vlans=local.vlans_for_vsphere_hosts}
+    vapor_02 = {name="Future Vapor02", nics=[2], ports=[1],  vlans=local.vlans_for_vsphere_hosts}
+    steam_01 = {name="Future Steam01", nics=[2], ports=[2],  vlans=local.vlans_for_vsphere_hosts}
+    steam_02 = {name="Future Steam02", nics=[2], ports=[3],  vlans=local.vlans_for_vsphere_hosts}
+    mist_01 =  {name="Future Mist01",  nics=[2], ports=[4],  vlans=local.vlans_for_vsphere_hosts}
+    mist_02 =  {name="Future Mist02",  nics=[2], ports=[5],  vlans=local.vlans_for_vsphere_hosts}
+    mist_03 =  {name="Future Mist03",  nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
+    mist_04 =  {name="Future Mist04",  nics=[2], ports=[7],  vlans=local.vlans_for_vsphere_hosts}
+    mist_05 =  {name="Future Mist05",  nics=[2], ports=[8],  vlans=local.vlans_for_vsphere_hosts}
+    mist_06 =  {name="Future Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_hosts}
+    mist_07 =  {name="Future Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
   }
 
   # Note: Add map entries to this map for any new switches that have
