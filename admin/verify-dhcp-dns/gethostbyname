@@ -1,0 +1,26 @@
+#!/bin/bash
+  
+# Informal.  WIP.
+#
+# Needs:
+# - Python 3
+
+me=$(basename $0)
+my_dir=$(dirname $(readlink -f $0))
+
+function gethostbyname {
+
+ghbn_file="$tmp_dir/gethostbyname.py"
+
+# cat <<E-O-D > "$ghbn_file"
+cat <<E-O-D | python3
+import socket
+try:
+   print(socket.gethostbyname("$1"))
+except:
+   pass
+E-O-D
+}
+
+gethostbyname "$1"
+
