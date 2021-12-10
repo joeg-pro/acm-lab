@@ -60,39 +60,32 @@ locals {
   cross_lab_vlans = {
     pvt-net-172-16 = {
       id = 302
-      description = "Private network 172.16 VLAN"
+      description = "Deprecated Private network 172.16 VLAN"
     }
     nas-io = {
       id = 303
-      description = "iSCSI/NFS I/O network VLAN"
+      description = "iSCSI/NFS I/O network VLAN (172.17.1.0/24)"
     }
-
-    pvt-net-vlan-350 = {
-      id = 350
-      description = "Available corss-lab private network VLAN"
+    pvt-net-172-17-2 = {
+      id = 304
+      description = "General-use Cross-Lab Private 10Gb Network VLAN (172.17.2.0/24)"
     }
-    pvt-net-vlan-351 = {
-      id = 351
-      description = "Available corss-lab private network VLAN"
-    }
-    # pvt-net-vlan-352 = {
-    #   id = 352
-    #   description = "Available corss-lab private network VLAN"
-    # }
-
   }
 
   all_vlan_defs = merge(local.vsphere_vlans, local.cross_lab_vlans)
 
+  #  vlans_pending_delete = ["pvt-net-vlan-350"]
+  vlans_pending_delete = []
 
   #--- Special machine connection to the switches  ---
   # (For machines other than the slot-related Fog machines)
 
   vlans_for_vsphere  = local.all_vlan_names
-  vlans_for_libvirt  = ["pvt-net-vlan-350"]
-  vlans_for_fe_hub   = ["nas-io"]
+  vlans_for_libvirt  = ["pvt-net-172-17-2"]
+  # vlans_for_fe_hub   = ["nas-io"]
+  vlans_for_fe_hub   = ["pvt-net-172-17-2"]
 
-  vlans_for_unused_ports = ["pvt-net-vlan-350"]
+  vlans_for_unused_ports = ["pvt-net-172-17-2"]
 
   sw_xe_1_non_slot_machines = {
     mist_01 = {

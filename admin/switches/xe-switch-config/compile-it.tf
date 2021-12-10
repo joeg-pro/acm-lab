@@ -29,8 +29,8 @@ locals {
   # ports which list every VLAN.  But it might occur in other cases too (and isn't yet
   # handled) if ports get lists of VLANs.
 
-  # exclude_vlans = ["pvt_net_vlan_352"]
-  exclude_vlans = []
+  # Required input vlans_pending_delete = []
+  exclude_vlans = local.vlans_pending_delete
 
   # Local.all_vlan_defs holds definition info ror all VLANs, including the ones we are
   # trying to delete. Local.all_vlans is the subset of all_vlan_defs that excludes the
