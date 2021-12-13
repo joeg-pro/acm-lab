@@ -62,30 +62,29 @@ locals {
       id = 302
       description = "Deprecated Private network 172.16 VLAN"
     }
-    nas-io = {
+    pvt-net-172-17-1 = {
       id = 303
-      description = "iSCSI/NFS I/O network VLAN (172.17.1.0/24)"
+      description = "General-use Cross-Lab Private 10Gb Network VLAN (172.17.1.0/24)"
     }
     pvt-net-172-17-2 = {
       id = 304
-      description = "General-use Cross-Lab Private 10Gb Network VLAN (172.17.2.0/24)"
+      description = "iSCSI/NFS I/O network VLAN (172.17.2.0/24)"
     }
   }
 
   all_vlan_defs = merge(local.vsphere_vlans, local.cross_lab_vlans)
 
-  #  vlans_pending_delete = ["pvt-net-vlan-350"]
+  # vlans_pending_delete = ["nas-io"]
   vlans_pending_delete = []
 
   #--- Special machine connection to the switches  ---
   # (For machines other than the slot-related Fog machines)
 
   vlans_for_vsphere  = local.all_vlan_names
-  vlans_for_libvirt  = ["pvt-net-172-17-2"]
-  # vlans_for_fe_hub   = ["nas-io"]
+  vlans_for_libvirt  = ["pvt-net-172-17-1"]
   vlans_for_fe_hub   = ["pvt-net-172-17-2"]
 
-  vlans_for_unused_ports = ["pvt-net-172-17-2"]
+  vlans_for_unused_ports = ["pvt-net-172-17-1"]
 
   sw_xe_1_non_slot_machines = {
     mist_01 = {
@@ -99,9 +98,13 @@ locals {
     mist_04  = {name="Mist04",  nics=[1,2], ports=[6,7],   vlans=local.vlans_for_vsphere}
 
     # NB: Mist 05 has flipped connection order.
-    mist_05 =  {name="Mist05",  nics=[2,1], ports=[8,9],   vlans=local.vlans_for_vsphere}
+    mist_05  = {name="Mist05",  nics=[2,1], ports=[8,9],   vlans=local.vlans_for_vsphere}
     vapor_01 = {name="Vapor01", nics=[1,2], ports=[10,11], vlans=local.vlans_for_vsphere}
     vapor_02 = {name="Vapor02", nics=[1,2], ports=[12,13], vlans=local.vlans_for_vsphere}
+    mist_06  = {name="Mist06",  nics=[1,2], ports=[14,15], vlans=local.vlans_for_libvirt}
+    mist_07  = {name="Mist07",  nics=[1,2], ports=[16,17], vlans=local.vlans_for_libvirt}
+    steam_01 = {name="Steam01", nics=[1,2], ports=[18,19], vlans=local.vlans_for_libvirt}
+    steam_02 = {name="Steam02", nics=[1,2], ports=[20,21], vlans=local.vlans_for_libvirt}
   }
 
   sw_xe_2_non_slot_machines = {
