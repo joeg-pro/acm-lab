@@ -98,13 +98,13 @@ locals {
     mist_04  = {name="Mist04",  nics=[1,2], ports=[6,7],   vlans=local.vlans_for_vsphere}
 
     # NB: Mist 05 has flipped connection order.
-    mist_05  = {name="Mist05",  nics=[2,1], ports=[8,9],   vlans=local.vlans_for_vsphere}
+    mist_05  = {name="*Mist05*",  nics=[2,1], ports=[8,9],   vlans=local.vlans_for_vsphere}
     vapor_01 = {name="Vapor01", nics=[1,2], ports=[10,11], vlans=local.vlans_for_vsphere}
     vapor_02 = {name="Vapor02", nics=[1,2], ports=[12,13], vlans=local.vlans_for_vsphere}
-    mist_06  = {name="Mist06",  nics=[1,2], ports=[14,15], vlans=local.vlans_for_libvirt}
-    mist_07  = {name="Mist07",  nics=[1,2], ports=[16,17], vlans=local.vlans_for_libvirt}
-    steam_01 = {name="Steam01", nics=[1,2], ports=[18,19], vlans=local.vlans_for_libvirt}
-    steam_02 = {name="Steam02", nics=[1,2], ports=[20,21], vlans=local.vlans_for_libvirt}
+    steam_01 = {name="*Steam01*", nics=[2,1], ports=[14,15], vlans=local.vlans_for_libvirt}
+    steam_02 = {name="*Steam02*", nics=[2,1], ports=[16,17], vlans=local.vlans_for_libvirt}
+    mist_06  = {name="*Mist06*",  nics=[2,1], ports=[18,19], vlans=local.vlans_for_libvirt}
+    mist_07  = {name="*Mist07*",  nics=[2,1], ports=[20,21], vlans=local.vlans_for_libvirt}
   }
 
   sw_xe_2_non_slot_machines = {
