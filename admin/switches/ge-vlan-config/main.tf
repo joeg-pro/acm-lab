@@ -87,9 +87,24 @@ locals {
   prov_vlan_name_pattern  = "test-slot-%02d-prov"
   prov_vlan_descr_pattern = "Test slot %02d provisioning network VLAN"
 
-  # Other ad-hoc VLANs:
+  # Other non-slot-related 1Gb VLANs:
 
-  rh_network_vlan_name = "rh-network-158"  # Keep name in line with resource name
+  other_vlans = {
+    rh-network-158 = {
+      id = 158,
+      description = "Red Hat Lab Netowrk VLAN (10.1.158.0/24)"
+    }
+    pvt-net-172-18-1 = {
+      id = 400
+      description = "General-use Cross-Lab Private 1Gb Network VLAN (172.18.1.0/24)"
+    }
+    not-in-use = {
+      id = 499
+      description = "VLAN for 1Gb NICs not yet on any other 1Gb network"
+    }
+  }
+
+  rh_network_vlan_name = "rh-network-158"
 
 
   #--- Special machine connection to the switches  ---
@@ -99,9 +114,9 @@ locals {
   # (Future: define additional variables for other classes of machines.)
   vlans_for_vsphere_hosts = local.non_excluded_test_slot_vlan_names
 
-  # Libvirt/KVM machines get access-mode connections.
-  # TEMPORARY CONNECT TO MAINT PROV NETWORK
-
+  # Libvirt/KVM machines get NIC2 access-mode connections to ??? 1Gb Network
+  # Proposal:  Connect them to a non-slot 172.31.99.0/24 data network?
+  # TEMPORARY: CONNECT TO MAINT PROV NETWORK DURING MACHINE CHECKOUT
   vlans_for_libvirt_hosts = ["test-slot-49-prov"]
 
   # VSphere Vapor and Mist hosts are connected into 1Gb Swithc 1 thusly:
@@ -113,34 +128,34 @@ locals {
       ports = [40]      # Ordinals of the switch ports to which NICs are connected
       vlans = local.vlans_for_vsphere_hosts   # VLANs to allow
     }
-    mist_02 =  {name="Mist02",  nics=[2], ports=[41], vlans=local.vlans_for_vsphere_hosts}
-    mist_03 =  {name="Mist03",  nics=[2], ports=[42], vlans=local.vlans_for_vsphere_hosts}
-    mist_04 =  {name="Mist04",  nics=[2], ports=[43], vlans=local.vlans_for_vsphere_hosts}
-    mist_05 =  {name="Mist05",  nics=[2], ports=[44], vlans=local.vlans_for_vsphere_hosts}
+    mist_02  = {name="Mist02",  nics=[2], ports=[41], vlans=local.vlans_for_vsphere_hosts}
+    mist_03  = {name="Mist03",  nics=[2], ports=[42], vlans=local.vlans_for_vsphere_hosts}
+    mist_04  = {name="Mist04",  nics=[2], ports=[43], vlans=local.vlans_for_vsphere_hosts}
+    mist_05  = {name="Mist05",  nics=[2], ports=[44], vlans=local.vlans_for_vsphere_hosts}
     vapor_01 = {name="Vapor01", nics=[2], ports=[45], vlans=local.vlans_for_vsphere_hosts}
     vapor_02 = {name="Vapor02", nics=[2], ports=[46], vlans=local.vlans_for_vsphere_hosts}
   }
 
   sw_ge_4_non_slot_machines = {
-    mist_08 =  {name="Mist08",  nics=[2], ports=[18], vlans=local.vlans_for_libvirt_hosts}
-    mist_09 =  {name="Mist09",  nics=[2], ports=[19], vlans=local.vlans_for_libvirt_hosts}
-    mist_10 =  {name="Mist10",  nics=[2], ports=[20], vlans=local.vlans_for_libvirt_hosts}
-    mist_11 =  {name="Mist11",  nics=[2], ports=[21], vlans=local.vlans_for_libvirt_hosts}
-    mist_12 =  {name="Mist12",  nics=[2], ports=[22], vlans=local.vlans_for_libvirt_hosts}
+    mist_08  = {name="Mist08",  nics=[2], ports=[18], vlans=local.vlans_for_libvirt_hosts}
+    mist_09  = {name="Mist09",  nics=[2], ports=[19], vlans=local.vlans_for_libvirt_hosts}
+    mist_10  = {name="Mist10",  nics=[2], ports=[20], vlans=local.vlans_for_libvirt_hosts}
+    mist_11  = {name="Mist11",  nics=[2], ports=[21], vlans=local.vlans_for_libvirt_hosts}
+    mist_12  = {name="Mist12",  nics=[2], ports=[22], vlans=local.vlans_for_libvirt_hosts}
   }
 
   sw_ge_5_non_slot_machines = {
     vapor_01 = {name="Future Vapor01", nics=[2], ports=[0],  vlans=local.vlans_for_vsphere_hosts}
     vapor_02 = {name="Future Vapor02", nics=[2], ports=[1],  vlans=local.vlans_for_vsphere_hosts}
-    steam_01 = {name="Future Steam01", nics=[2], ports=[2],  vlans=local.vlans_for_vsphere_hosts}
-    steam_02 = {name="Future Steam02", nics=[2], ports=[3],  vlans=local.vlans_for_vsphere_hosts}
-    mist_01 =  {name="Future Mist01",  nics=[2], ports=[4],  vlans=local.vlans_for_vsphere_hosts}
-    mist_02 =  {name="Future Mist02",  nics=[2], ports=[5],  vlans=local.vlans_for_vsphere_hosts}
-    mist_03 =  {name="Future Mist03",  nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
-    mist_04 =  {name="Future Mist04",  nics=[2], ports=[7],  vlans=local.vlans_for_vsphere_hosts}
-    mist_05 =  {name="Future Mist05",  nics=[2], ports=[8],  vlans=local.vlans_for_vsphere_hosts}
-    mist_06 =  {name="Future Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_hosts}
-    mist_07 =  {name="Future Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
+    mist_01  = {name="Future Mist01",  nics=[2], ports=[2],  vlans=local.vlans_for_vsphere_hosts}
+    mist_02  = {name="Future Mist02",  nics=[2], ports=[3],  vlans=local.vlans_for_vsphere_hosts}
+    mist_03  = {name="Future Mist03",  nics=[2], ports=[4],  vlans=local.vlans_for_vsphere_hosts}
+    mist_04  = {name="Future Mist04",  nics=[2], ports=[5],  vlans=local.vlans_for_vsphere_hosts}
+    mist_05  = {name="Future Mist05",  nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
+    steam_01 = {name="Steam01",        nics=[2], ports=[7],  vlans=local.vlans_for_libvirt_hosts}
+    steam_02 = {name="Steam02",        nics=[2], ports=[8],  vlans=local.vlans_for_libvirt_hosts}
+    mist_06  = {name="Mist06",         nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_hosts}
+    mist_07  = {name="Mist07",         nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
   }
 
   # Note: Add map entries to this map for any new switches that have
@@ -197,7 +212,7 @@ locals {
     },
     {
       port_name = "xe-0/1/2"
-      description = "TEMP Link to 1Gb switch 3"
+      description = "Link to 1Gb switch 5"
       vlans = local.all_vlan_names
     },
     {
@@ -242,7 +257,7 @@ locals {
   sw_ge_3_special_port_configs = [
     {
       port_name = "xe-0/1/2"
-      description = "TEMP Link to 1Gb switch 1"
+      description = "Link to 1Gb switch 5"
       vlans = local.all_vlan_names
     },
     {
@@ -353,14 +368,6 @@ locals {
   }
 
   test_slot_vlans = merge(local.test_slot_data_vlans, local.test_slot_prov_vlans)
-
-  # Definition for ad-hoc VLANs:
-
-  other_vlans = {
-    rh-network-158 = {
-      id = 158, description = "Red Hat network 10.1.158.0 subnet VLAN"
-    }
-  }
 
   # Logic/variables for dealing with TF dependency issues when deleting VLAN.
 
