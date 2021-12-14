@@ -1,20 +1,21 @@
 #!/bin/bash
 
-# Adds static route to provide access to a Bre Metal Slot's private
-# provisioning network/subnet via routing to the GAP VM for the slot.
-# Can optionally do the same for the data network as well.
+# Adds static route to provide access to a Bre Metal Slot's private provisioning
+# and/or data network/subnet via routing to the GAP VM for the slot.  By default,
+# it creates routes for both provisioning and data networks but you can
+# optionally omit one or the other.
 #
-# You can use this on a  "isntaller machine" from which the OCP installer
-# will be run to provide needed provisioning access.  You can also use
-# this on the GAP VM for Slot X to give cluster nodes on Slot X access
-# to the provisioning network of some other Slot Y (as is needed for
-# an ACM Hub to be able to provision a spoke in another slot).
+# You can use this on a  "isntaller machine" from which the OCP installer will
+# be run to provide needed network access.  You can also use this on the GAP VM
+# for Slot X to give cluster nodes on Slot X access to the private networks  of
+# some other Slot Y (as is needed for an ACM Hub to be able to provision a spoke
+# in another slot).
 
 me=$(basename $0)
 
 opt_flags="dDpPaA"
 
-add_route_for_data=0
+add_route_for_data=1
 add_route_for_provisioning=1
 apply_changes=1
 
