@@ -155,6 +155,16 @@ resource vsphere_virtual_machine vm {
   }
 
   lifecycle {
-    ignore_changes = [annotation]
+    #
+    # We ignore annotation so we can edit VM descriptions without triggering
+    # a replacement of an existing VM.
+    #
+    # We ignore guest_ip_addresses and vmware_tool_status so that a powered-off
+    # VM doesn't trigger replacement.
+    #
+    # We ignore clone so that a new version of the base image doesn't trigger
+    # replacement of existing VMs.  We'll taint them if we want that to happen.
+    #
+    ignore_changes = [annotation, clone, guest_ip_addresses, vmware_tools_status]
   }
 }
