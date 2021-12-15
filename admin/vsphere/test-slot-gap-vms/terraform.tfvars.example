@@ -1,7 +1,7 @@
 
 # Required:
 
-slot_list             = [12]
+slot_list             = [02, 06, 08, 10]
 
 vcenter_user_file     = "/home/user/.secrets/vsphere-username.txt"
 vcenter_password_file = "/home/user/.secrets/vsphere-password.txt"
@@ -9,7 +9,7 @@ vcenter_password_file = "/home/user/.secrets/vsphere-password.txt"
 # Defaulted:
 
 # gap_template_name    = "latest"
-# gap_template_pattern = "vm/VM Templates/Base-RHEL-8-GAP
+# gap_template_pattern = "vm/VM Templates/Base-RHEL-8-GAP"
 
 # vcenter_server   = "10.1.158.10"
 # datacenter_name  = "ACM Lab Datacenter"
