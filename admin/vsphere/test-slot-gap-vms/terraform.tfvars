@@ -3,7 +3,7 @@
 
 # Required:
 
-slot_list             = [02, 06, 08, 10]
+slot_list             = [02, 06, 08, 10, 12]
 # Notes:
 # Slots 00,and 04 were in-use prior to this TF having been created
 # so for the time being we're leaving them alone.

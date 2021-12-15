@@ -1,7 +1,7 @@
 
 # Required:
 
-slot_list             = [02, 06, 08, 10]
+slot_list             = [02, 06, 08, 10i, 12]
 
 vcenter_user_file     = "/home/user/.secrets/vsphere-username.txt"
 vcenter_password_file = "/home/user/.secrets/vsphere-password.txt"
