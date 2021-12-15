@@ -72,8 +72,8 @@ locals {
     02 = ["fog_07", "fog_08", "fog_09", "fog_10", "fog_11", "fog_12"],
     04 = ["fog_13", "fog_14", "fog_15", "fog_16", "fog_17", "fog_18"],
     06 = ["fog_19", "fog_20", "fog_21", "fog_22", "fog_23", "fog_24"],
-    49 = ["fog_25", "fog_26", "fog_27", "fog_28", "fog_29", "fog_30",
-          "fog_31", "fog_32", "fog_33", "fog_34", "fog_35", "fog_36",
+    08 = ["fog_25", "fog_26", "fog_27", "fog_28", "fog_29", "fog_30"],
+    49 = ["fog_31", "fog_32", "fog_33", "fog_34", "fog_35", "fog_36",
           "fog_37", "fog_38", "fog_39", "fog_40", "fog_41", "fog_42",
           "fog_43", "fog_44", "fog_45", "fog_46", "fog_47", "fog_48",
           "fog_49", "fog_50", "fog_51"]
