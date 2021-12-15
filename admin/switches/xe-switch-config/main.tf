@@ -18,7 +18,7 @@ provider junos {
   # 10Gb switch in rack A35.
 
   alias     = "sw_xe_1"
-  ip        = "acm-ex4600-10g.mgmt.acm.lab.eng.rdu2.redhat.com"
+  ip        = "acm-ex4600-10g-1.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
