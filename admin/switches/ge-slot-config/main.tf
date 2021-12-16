@@ -12,10 +12,22 @@ terraform {
 }
 
 provider junos {
-  # First switch in rack A36
+  # First (only) switch in rack A35. Acts as "root" switch.
+  # Note: Switch 1 has no slot-resident machines connected to it, so there is no
+  # further config for it in this TF.  But the provider is defined keep it handy.
 
   alias     = "sw_ge_1"
-  ip        = "acm-2300-1g.mgmt.acm.lab.eng.rdu2.redhat.com"
+  ip        = "acm-ex2300-1g-1.mgmt.acm.lab.eng.rdu2.redhat.com"
+  username  = var.switch_username
+  password  = var.switch_password
+}
+
+provider junos {
+  # First switch in rack A36.
+  # (This rack holds Fog01 to Fog24.)
+
+  alias     = "sw_ge_2"
+  ip        = "acm-ex2300-1g-2.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
@@ -23,49 +35,48 @@ provider junos {
 provider junos {
   # Second switch in rack A36
 
-  alias     = "sw_ge_2"
-  ip        = "acm-2300-1g-2.mgmt.acm.lab.eng.rdu2.redhat.com"
+  alias     = "sw_ge_3"
+  ip        = "acm-ex2300-1g-3.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
 
 provider junos {
   # First (only) switch in rack A37
+  # (This rack holds Fog25 to Fog42.)
 
-  alias     = "sw_ge_3"
-  ip        = "acm-2300-1g-3.mgmt.acm.lab.eng.rdu2.redhat.com"
+  alias     = "sw_ge_4"
+  ip        = "acm-ex2300-1g-4.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
 
 provider junos {
   # First (only) switch in rack A38
-
-  alias     = "sw_ge_4"
-  ip        = "acm-2300-1g-4.mgmt.acm.lab.eng.rdu2.redhat.com"
-  username  = var.switch_username
-  password  = var.switch_password
-}
-
-provider junos {
-  # First (only) switch in rack A35. Acts as "root" switch.
-  # Note: Switch 5 has no slot-resident machines connected to it, so there is no
-  # further config for it in this TF.  But the provider is defined keep it handy.
+  # (This rack holds Fog43 to Fog51.)
 
   alias     = "sw_ge_5"
-  ip        = "acm-2300-1g-5.mgmt.acm.lab.eng.rdu2.redhat.com"
+  ip        = "acm-ex2300-1g-5.mgmt.acm.lab.eng.rdu2.redhat.com"
   username  = var.switch_username
   password  = var.switch_password
 }
+
 
 #=== Configuration Info ===
 
+# The local vars in this section define the configuration of machines to slots in a compact
+# way.  These local vars are then "muncged" by (used as input to and transforemd by) some
+# "compile-it" stuff to turn this into something we use to configure a set of TF resources.
+# In a sense, these locals represent a DSL for definining slot/machine configuration.)
+
 locals {
 
-  # Machine to slot assignment:
+  # Machine to slot assignment is expressed in the machine_slot_assignment map, by
+  # specifying for each slot the list of machines that live in that slot.
 
-  # Note: Every machine needs to be assigned to some slot. Slot 49 is the
-  # "in the garage for maintenance" slot so assign to that if unused.
+  # Note: Every "Fog" machine under this TF's perview needs to be assigned to some slot.
+  # Slot 49 is the maintenance slot so assign a machine to that slot if currently unused
+  # (or "in the garage" for repairs or refurbishment).
 
   machine_slot_assignments = {
     00 = ["fog_01", "fog_02", "fog_03", "fog_04", "fog_05", "fog_06"],
@@ -77,14 +88,11 @@ locals {
     12 = ["fog_37", "fog_38", "fog_39", "fog_40", "fog_41", "fog_42"],
     49 = ["fog_43", "fog_44", "fog_45", "fog_46", "fog_47", "fog_48",
           "fog_49", "fog_50", "fog_51"]
-
   }
-
-  unallocated_machines = ""
 
   # Machine NIC to switch port configuration:
 
-  sw_ge_1_machine_connections = {
+  sw_ge_2_machine_connections = {
     fog_01 = {
       name  = "Fog01"   # Name of machine to use in description
       nics  = [1, 2]    # The ordinal of the NICs connected (parallel to ports array)
@@ -109,7 +117,7 @@ locals {
     fog_18 = {name="Fog18", nics=[1, 2], ports=[34, 35]}
   }
 
-  sw_ge_2_machine_connections = {
+  sw_ge_3_machine_connections = {
     fog_19 = {name="Fog19", nics=[1, 2], ports=[0, 1]},
     fog_20 = {name="Fog20", nics=[1, 2], ports=[2, 3]},
     fog_21 = {name="Fog21", nics=[1, 2], ports=[4, 5]},
@@ -118,7 +126,7 @@ locals {
     fog_24 = {name="Fog24", nics=[1, 2], ports=[10, 11]}
   }
 
-  sw_ge_3_machine_connections = {
+  sw_ge_4_machine_connections = {
     fog_25 = {name="Fog25", nics=[1, 2], ports=[0, 1]},
     fog_26 = {name="Fog26", nics=[1, 2], ports=[2, 3]},
     fog_27 = {name="Fog27", nics=[1, 2], ports=[4, 5]},
@@ -139,7 +147,7 @@ locals {
     fog_42 = {name="Fog42", nics=[1, 2], ports=[34, 35]}
   }
 
-  sw_ge_4_machine_connections = {
+  sw_ge_5_machine_connections = {
     fog_43 = {name="Fog43", nics=[1, 2], ports=[0, 1]},
     fog_44 = {name="Fog44", nics=[1, 2], ports=[2, 3]},
     fog_45 = {name="Fog45", nics=[1, 2], ports=[4, 5]},
@@ -154,184 +162,17 @@ locals {
   # Note: Add map entries to local.machine_connections for any new switches.
 
   machine_connections = {
-    sw_ge_1 = local.sw_ge_1_machine_connections
     sw_ge_2 = local.sw_ge_2_machine_connections
     sw_ge_3 = local.sw_ge_3_machine_connections
     sw_ge_4 = local.sw_ge_4_machine_connections
+    sw_ge_5 = local.sw_ge_5_machine_connections
   }
 
 }
 
-#=== "Compile it" Locals ===
+# Local variables to "compile" above config into a form that can be used by
+# resource for-each iteration is in compile-it.tf.
 
-locals {
-
-  #----------------------------------------------------------------------
-  # "Compile" slot assignment/machine-connection info into usable form.
-  #----------------------------------------------------------------------
-
-  # Convert the slot-assignemnt and machine-connection info in local vars into
-  # a map of maps we can for_each over within per-switch junos_physcial_interface
-  # resources to define the switch port/interface configuration.
-
-  # (We do this stepwide to assist in debugging/understanding, maybe.)
-
-  # First, use the slot assinment info to produce an augmented machine connection map
-  # ("machine connections extended") that adds vlan info into the name, port etc. info
-  # defined in the base map.
-
-  machine_to_slot_nr_map = transpose(local.machine_slot_assignments)
-  machine_connections_ext = {
-    # (Iteration vars: sw_n = switch name, sw_mc = sw_n's machine connections)
-    for sw_n,sw_mc in local.machine_connections: sw_n => {
-      # (Iteration vars: mn = machine key/id, mv = info about machine mn)
-      for mk,mv in local.machine_connections[sw_n]: mk => {
-        name  = mv.name, nics  = mv.nics, ports = mv.ports
-        vlans = [
-          for i in range(length(mv.ports)):
-            # Map to slot's provisioning/data VLAN name based on what NIC it is:
-            mv.nics[i] == 1 ?
-              format("test-slot-%02d-prov", tonumber(local.machine_to_slot_nr_map[mk][0])) :
-              format("test-slot-%02d-data", tonumber(local.machine_to_slot_nr_map[mk][0]))
-        ]
-      }
-    }
-  }
-
-  # We now need to convert from machine_connections_ext's map-of-maps where the inner
-  # map has one entry per machine into a map-of-maps where the inner map has one entry
-  # per port to be configured on that switch.  It seems not possible to do this in one
-  # fell swoop because doing that would require the key expression for the inner map to
-  #  be insdie a nested for, which TF doesn't seem to like.  So instead we do this
-  # in a couple of steps.  (This approach inspired by this GH issue command and related
-  # discussion: https://github.com/hashicorp/terraform/issues/22263#issuecomment-581205359)
-
-  # So, convert the machine_connections_ext into a map from switch-name to a list of
-  # port config info to be applied to that switch, using flatten() to flatten out
-  # the nesting of the map-value list.
-
-  spc_intermediate_map_of_lists = {
-    for sw_n,sw_mc in local.machine_connections_ext: sw_n => flatten([
-      for mn,mv in sw_mc: [
-        for i in range(length(mv.ports)): {
-          key = format("ge-0/0/%s", mv.ports[i])
-          value = {
-            description = format("%s 1G NIC %d", mv.name, mv.nics[i])
-            vlans = [sw_mc[mn].vlans[i]]
-          }
-        }
-      ]
-    ])
-  }
-
-  # And now  finally convert the above into the map of maps we'll use to
-  # for-each in the per-switch junos.physcial_interface resources.
-
-  switch_port_configs = {
-    for sw_n,sw_pcl in local.spc_intermediate_map_of_lists: sw_n => {
-      for e in sw_pcl: e.key =>  e.value
-    }
-  }
-
-  #----------------------------------------------
-  # Collect up import_info for use by import.sh
-  #----------------------------------------------
-
-  # Contributes to the import_info output for use by import.sh:
-  switch_port_import_info = flatten([
-    for sw_n,sw_pcm in local.switch_port_configs: [
-      for pn,pc in sw_pcm: {
-        resource = format("junos_interface_physical.%s_port[\"%s\"]", sw_n, pn)
-        id = pn
-      }
-    ]
-  ])
-
-  import_info = local.switch_port_import_info
-}
-
-
-# ======== Switch 1 ========
-
-resource junos_interface_physical sw_ge_1_port {
-
-  provider = junos.sw_ge_1
-
-  for_each = local.switch_port_configs["sw_ge_1"]
-    name         = each.key
-    description  = each.value.description
-    trunk        = length(each.value.vlans) > 1
-    vlan_members = each.value.vlans
-    ether_opts {
-      auto_negotiation    = true
-      flow_control        = false
-      loopback            = false
-      no_auto_negotiation = false
-      no_flow_control     = false
-      no_loopback         = false
-    }
-}
-
-# ======== Switch 2 ========
-
-resource junos_interface_physical sw_ge_2_port {
-
-  provider = junos.sw_ge_2
-
-  for_each = local.switch_port_configs["sw_ge_2"]
-    name         = each.key
-    description  = each.value.description
-    trunk        = length(each.value.vlans) > 1
-    vlan_members = each.value.vlans
-    ether_opts {
-      auto_negotiation    = true
-      flow_control        = false
-      loopback            = false
-      no_auto_negotiation = false
-      no_flow_control     = false
-      no_loopback         = false
-    }
-}
-
-# ======== Switch 3 ========
-
-resource junos_interface_physical sw_ge_3_port {
-
-  provider = junos.sw_ge_3
-
-  for_each = local.switch_port_configs["sw_ge_3"]
-    name         = each.key
-    description  = each.value.description
-    trunk        = length(each.value.vlans) > 1
-    vlan_members = each.value.vlans
-    ether_opts {
-      auto_negotiation    = true
-      flow_control        = false
-      loopback            = false
-      no_auto_negotiation = false
-      no_flow_control     = false
-      no_loopback         = false
-    }
-}
-
-# ======== Switch 4 ========
-
-resource junos_interface_physical sw_ge_4_port {
-
-  provider = junos.sw_ge_4
-
-  for_each = local.switch_port_configs["sw_ge_4"]
-    name         = each.key
-    description  = each.value.description
-    trunk        = length(each.value.vlans) > 1
-    vlan_members = each.value.vlans
-    ether_opts {
-      auto_negotiation    = true
-      flow_control        = false
-      loopback            = false
-      no_auto_negotiation = false
-      no_flow_control     = false
-      no_loopback         = false
-    }
-}
-
+# Resource defintiions are in resources.tf to make it easier to omit them
+# (eg by renaming the file to *.aside") when debugging all of the "math" done
+# by the locals above via outputs.
