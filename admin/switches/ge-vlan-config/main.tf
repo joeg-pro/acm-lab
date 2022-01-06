@@ -127,6 +127,7 @@ locals {
   # Proposal:  Connect them to a general-use private 1Gb network?
   # TEMPORARY: CONNECT TO MAINT PROV NETWORK DURING MACHINE CHECKOUT
   vlans_for_libvirt_hosts = ["test-slot-49-prov"]
+  vlans_for_nas_hosts     = ["not-in-use"]
 
   # VSphere Vapor and Mist hosts are connected into 1Gb Swithc 1 thusly:
 
@@ -143,7 +144,7 @@ locals {
     mist_05  = {name="Mist05",  nics=[2], ports=[4],  vlans=local.vlans_for_vsphere_hosts}
     vapor_01 = {name="Vapor01", nics=[2], ports=[5],  vlans=local.vlans_for_vsphere_hosts}
     vapor_02 = {name="Vapor02", nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
-    steam_01 = {name="Steam01", nics=[2], ports=[7],  vlans=local.vlans_for_libvirt_hosts}
+    steam_01 = {name="Steam01", nics=[2], ports=[7],  vlans=local.vlans_for_nas_hosts    }
     steam_02 = {name="Steam02", nics=[2], ports=[8],  vlans=local.vlans_for_libvirt_hosts}
     mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_hosts}
     mist_07  = {name="Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
