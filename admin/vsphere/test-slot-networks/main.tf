@@ -4,9 +4,8 @@ terraform {
 }
 
 locals {
-   # 2021-12: Test slot 4 is legacy and iin-use, so not yet managed by this TF.
    # Test slot 49 is a special maintenance one and not to be used for OCP clusters.
-   slot_list = concat([0, 1, 2, 3], range(5, 24), [49])
+   slot_list = concat(range(0, 24), [49])
    slot_set = toset(formatlist("%02d", local.slot_list))
 }
 

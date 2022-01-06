@@ -3,15 +3,15 @@
 
 # Required:
 
-slot_list             = [02, 06, 08, 10, 12]
+slot_list             = [00, 02, 04, 06, 08, 10, 12]
 # Notes:
-# Slots 00,and 04 were in-use prior to this TF having been created
-# so for the time being we're leaving them alone.
+#
+# Slots 00, 02, 04, 06, 08, 10 and 12 are intended for bare metal machines
+# using single-node Fog machines.
 # 
-# Ultimately, slots 00, 02, 04, 06, 08, 10 and 12 are intended for 
-# bare metal machines using single-node Fog machines.
-# 
-# Slos 14 and up are for other purposes.
+# Slots 14 to 19 are reserved for additional bare-metal test slots.
+#
+# Slots 20 to 48 are for other purposes.
 #
 # Slot 49 is a special maintenance-mode slot with a configuration that
 # brings in a PXE server to install a maintenance RHEL image, etc.
