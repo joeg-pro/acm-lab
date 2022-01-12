@@ -146,7 +146,7 @@ locals {
     vapor_02 = {name="Vapor02", nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
     steam_01 = {name="Steam01", nics=[2], ports=[7],  vlans=local.vlans_for_nas_hosts    }
     steam_02 = {name="Steam02", nics=[2], ports=[8],  vlans=local.vlans_for_libvirt_hosts}
-    mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_hosts}
+    mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_vsphere_hosts}
     mist_07  = {name="Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
   }
 
