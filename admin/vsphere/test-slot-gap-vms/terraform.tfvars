@@ -3,7 +3,7 @@
 
 # Required:
 
-slot_list             = [00, 02, 04, 06, 08, 10, 12]
+slot_list             = [00, 02, 03, 04, 06, 08, 10, 12]
 # Notes:
 #
 # Slots 00, 02, 04, 06, 08, 10 and 12 are intended for bare metal machines

@@ -80,7 +80,8 @@ locals {
 
   machine_slot_assignments = {
     00 = ["fog_01", "fog_02", "fog_03", "fog_04", "fog_05", "fog_06"],
-    02 = ["fog_07", "fog_08", "fog_09", "fog_10", "fog_11", "fog_12"],
+    02 = ["fog_07", "fog_08", "fog_09"],
+    03 = ["fog_10", "fog_11", "fog_12"],
     04 = ["fog_13", "fog_14", "fog_15", "fog_16", "fog_17", "fog_18"],
     06 = ["fog_19", "fog_20", "fog_21", "fog_22", "fog_23", "fog_24"],
     08 = ["fog_25", "fog_26", "fog_27", "fog_28", "fog_29", "fog_30"],
