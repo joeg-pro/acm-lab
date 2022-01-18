@@ -56,6 +56,8 @@ locals {
     }
   }
 
+  vsphere_only_vlan_names = ["vsphere-admin-vmotion", "vsphere-workload-vmotion"]
+
   # VLANs accessible by any host in the lab.
   cross_lab_vlans = {
     pvt-net-172-16 = {
@@ -72,7 +74,16 @@ locals {
     }
   }
 
-  all_vlan_defs = merge(local.vsphere_vlans, local.cross_lab_vlans)
+  cross_lab_vlan_names = ["pvt-net-172-16", "pvt-net-172-17-1", "pvt-net-172-17-2"]
+
+  other_vlans = {
+    not-in-use = {
+      id = 399
+      description = "VLAN for 10Gb NICs not yet on any other 10Gb network"
+    }
+  }
+
+  all_vlan_defs = merge(local.vsphere_vlans, local.cross_lab_vlans, local.other_vlans)
 
   # vlans_pending_delete = ["nas-io"]
   vlans_pending_delete = []
@@ -80,11 +91,14 @@ locals {
   #--- Special machine connection to the switches  ---
   # (For machines other than the slot-related Fog machines)
 
-  vlans_for_vsphere  = local.all_vlan_names
-  vlans_for_libvirt  = ["pvt-net-172-17-1"]
-  vlans_for_fe_hub   = ["pvt-net-172-17-2"]
+  vlans_for_vsphere = concat(local.cross_lab_vlan_names, local.vsphere_only_vlan_names)
+  vlans_for_nas     = local.cross_lab_vlan_names
+  vlans_for_libvirt = ["pvt-net-172-17-1"]
+  vlans_for_libvirt_xe_1 = ["pvt-net-172-17-1"]
+  vlans_for_libvirt_xe_2 = ["not-in-use"]
+  vlans_for_fe_hub  = ["pvt-net-172-17-2"]
 
-  vlans_for_unused_ports = ["pvt-net-172-17-1"]
+  vlans_for_unused_ports = ["not-in-use"]
 
   sw_xe_1_non_slot_machines = {
     mist_01 = {
@@ -93,26 +107,36 @@ locals {
       ports = [0, 1]    # Ordinals of the switch ports to which NICs are connected
       vlans = local.vlans_for_vsphere   # VLANs to allow
     }
-    mist_02  = {name="Mist02",  nics=[1,2], ports=[2,3],   vlans=local.vlans_for_vsphere}
-    mist_03  = {name="Mist03",  nics=[1,2], ports=[4,5],   vlans=local.vlans_for_vsphere}
-    mist_04  = {name="Mist04",  nics=[1,2], ports=[6,7],   vlans=local.vlans_for_vsphere}
+    mist_02  = {name="Mist02",    nics=[1,2], ports=[2,3],   vlans=local.vlans_for_vsphere}
+    mist_03  = {name="Mist03",    nics=[1,2], ports=[4,5],   vlans=local.vlans_for_vsphere}
+    mist_04  = {name="Mist04",    nics=[1,2], ports=[6,7],   vlans=local.vlans_for_vsphere}
+    mist_05  = {name="Mist05",    nics=[1,2], ports=[8,9],   vlans=local.vlans_for_vsphere}
 
-    # NB: Mist 05 has flipped connection order.
-    mist_05  = {name="*Mist05*",  nics=[2,1], ports=[8,9],   vlans=local.vlans_for_vsphere}
-    vapor_01 = {name="Vapor01", nics=[1,2], ports=[10,11], vlans=local.vlans_for_vsphere}
-    vapor_02 = {name="Vapor02", nics=[1,2], ports=[12,13], vlans=local.vlans_for_vsphere}
-    steam_01 = {name="*Steam01*", nics=[2,1], ports=[14,15], vlans=local.vlans_for_libvirt}
+    # NB: Mist-06 and -07 have reversed connections.
+    mist_06  = {name="*Mist06*",  nics=[2,1], ports=[18,19], vlans=local.cross_lab_vlan_names}
+    mist_07  = {name="*Mist07*",  nics=[2,1], ports=[20,21], vlans=local.cross_lab_vlan_names}
+
+    vapor_01 = {name="Vapor01",   nics=[1,2], ports=[10,11], vlans=local.vlans_for_vsphere}
+    vapor_02 = {name="Vapor02",   nics=[1,2], ports=[12,13], vlans=local.vlans_for_vsphere}
+
+    # NB: Steam-02 has reversed connections.
+    steam_01 = {name="Steam01",   nics=[1,2], ports=[14,15], vlans=local.vlans_for_libvirt}
     steam_02 = {name="*Steam02*", nics=[2,1], ports=[16,17], vlans=local.vlans_for_libvirt}
-    mist_06  = {name="*Mist06*",  nics=[2,1], ports=[18,19], vlans=local.vlans_for_libvirt}
-    mist_07  = {name="*Mist07*",  nics=[2,1], ports=[20,21], vlans=local.vlans_for_libvirt}
   }
 
   sw_xe_2_non_slot_machines = {
-    mist_08 =  {name="Mist08",  nics=[1,2], ports=[0,1],   vlans=local.vlans_for_libvirt}
-    mist_09 =  {name="Mist09",  nics=[1,2], ports=[2,3],   vlans=local.vlans_for_libvirt}
-    mist_10 =  {name="Mist10",  nics=[1,2], ports=[4,5],   vlans=local.vlans_for_libvirt}
-    mist_11 =  {name="Mist11",  nics=[1,2], ports=[6,7],   vlans=local.vlans_for_libvirt}
-    mist_12 =  {name="Mist12",  nics=[1,2], ports=[8,9],   vlans=local.vlans_for_libvirt}
+
+    mist_08_xe_1 =  {name="Mist08",  nics=[1], ports=[0],  vlans=local.vlans_for_libvirt_xe_1}
+    mist_08_xe_2 =  {name="Mist08",  nics=[2], ports=[1],  vlans=local.vlans_for_libvirt_xe_2}
+    mist_09_xe_1 =  {name="Mist09",  nics=[1], ports=[2],  vlans=local.vlans_for_libvirt_xe_1}
+    mist_09_xe_2 =  {name="Mist09",  nics=[2], ports=[3],  vlans=local.vlans_for_libvirt_xe_2}
+    mist_10_xe_2 =  {name="Mist10",  nics=[1], ports=[4],  vlans=local.vlans_for_libvirt_xe_1}
+    mist_10_xe_1 =  {name="Mist10",  nics=[2], ports=[5],  vlans=local.vlans_for_libvirt_xe_2}
+    mist_11_xe_1 =  {name="Mist11",  nics=[1], ports=[6],  vlans=local.vlans_for_libvirt_xe_1}
+    mist_11_xe_2 =  {name="Mist11",  nics=[2], ports=[7],  vlans=local.vlans_for_libvirt_xe_2}
+    mist_12_xe_1 =  {name="Mist12",  nics=[1], ports=[8],  vlans=local.vlans_for_libvirt_xe_1}
+    mist_12_xe_2 =  {name="Mist12",  nics=[2], ports=[9],  vlans=local.vlans_for_libvirt_xe_2}
+
     fog_43  =  {name="Fog43",   nics=[1],   ports=[10],    vlans=local.vlans_for_fe_hub}
     fog_44  =  {name="Fog44",   nics=[1],   ports=[11],    vlans=local.vlans_for_fe_hub}
     fog_45  =  {name="Fog45",   nics=[1],   ports=[12],    vlans=local.vlans_for_fe_hub}
