@@ -98,6 +98,9 @@ locals {
   vlans_for_libvirt_xe_2 = ["not-in-use"]
   vlans_for_fe_hub  = ["pvt-net-172-17-2"]
 
+  vlans_for_nas_xe_1 = ["pvt-net-172-17-2"]
+  vlans_for_nas_xe_2 = ["not-in-use"]
+
   vlans_for_unused_ports = ["not-in-use"]
 
   sw_xe_1_non_slot_machines = {
@@ -120,8 +123,10 @@ locals {
     vapor_02 = {name="Vapor02",   nics=[1,2], ports=[12,13], vlans=local.vlans_for_vsphere}
 
     # NB: Steam-02 has reversed connections.
-    steam_01 = {name="Steam01",   nics=[1,2], ports=[14,15], vlans=local.vlans_for_libvirt}
-    steam_02 = {name="*Steam02*", nics=[2,1], ports=[16,17], vlans=local.vlans_for_libvirt}
+    steam_01_xe_1 = {name="Steam01",   nics=[1], ports=[14], vlans=local.vlans_for_nas_xe_1}
+    steam_01_xe_2 = {name="Steam01",   nics=[2], ports=[15], vlans=local.vlans_for_nas_xe_2}
+    steam_02_xe_1 = {name="*Steam02*", nics=[2], ports=[16], vlans=local.vlans_for_nas_xe_1}
+    steam_02_xe_2 = {name="*Steam02*", nics=[1], ports=[17], vlans=local.vlans_for_nas_xe_2}
   }
 
   sw_xe_2_non_slot_machines = {
