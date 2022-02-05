@@ -125,8 +125,8 @@ locals {
     # NB: Steam-02 has reversed connections.
     steam_01_xe_1 = {name="Steam01",   nics=[1], ports=[14], vlans=local.vlans_for_nas_xe_1}
     steam_01_xe_2 = {name="Steam01",   nics=[2], ports=[15], vlans=local.vlans_for_nas_xe_2}
-    steam_02_xe_1 = {name="*Steam02*", nics=[2], ports=[16], vlans=local.vlans_for_nas_xe_1}
-    steam_02_xe_2 = {name="*Steam02*", nics=[1], ports=[17], vlans=local.vlans_for_nas_xe_2}
+    steam_02_xe_1 = {name="*Steam02*", nics=[1], ports=[17], vlans=local.vlans_for_nas_xe_1}
+    steam_02_xe_2 = {name="*Steam02*", nics=[2], ports=[16], vlans=local.vlans_for_nas_xe_2}
   }
 
   sw_xe_2_non_slot_machines = {
