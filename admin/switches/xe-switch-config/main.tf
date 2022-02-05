@@ -14,6 +14,9 @@ terraform {
   }
 }
 
+# There are ACM 10Gb switches in racks A35 and A38.  The switch in
+# A35 is referred to as 10g-1, and the one in A38 is 10g-2.
+
 provider junos {
   # 10Gb switch in rack A35.
 
@@ -43,6 +46,9 @@ locals {
   port_speed = 10
 
   #--- VLANs ---
+
+  # The following varaibles define/configure the 10Gb VLANs.
+
   # VLANs accessible only by VSphere cluster nodes.
   vsphere_vlans = {
     vsphere-admin-vmotion = {
@@ -88,8 +94,11 @@ locals {
   # vlans_pending_delete = ["nas-io"]
   vlans_pending_delete = []
 
-  #--- Special machine connection to the switches  ---
-  # (For machines other than the slot-related Fog machines)
+
+  #--- Machine/Switch Connection Topology  ---
+
+  # The following variables define the connection topology between the
+  # servers and the switches.
 
   vlans_for_vsphere = concat(local.cross_lab_vlan_names, local.vsphere_only_vlan_names)
   vlans_for_nas     = local.cross_lab_vlan_names
@@ -106,9 +115,9 @@ locals {
   sw_xe_1_non_slot_machines = {
     mist_01 = {
       name  = "Mist01"  # Name of machine to use in description
-      nics  = [1, 2]    # The ordinal of the NICs connected (parallel to ports array)
+      nics  = [1, 2]    # Ordinals of the NICs connected (parallel to ports array)
       ports = [0, 1]    # Ordinals of the switch ports to which NICs are connected
-      vlans = local.vlans_for_vsphere   # VLANs to allow
+      vlans = local.vlans_for_vsphere   # VLANs to allow for all connections deifned in this entry
     }
     mist_02  = {name="Mist02",    nics=[1,2], ports=[2,3],   vlans=local.vlans_for_vsphere}
     mist_03  = {name="Mist03",    nics=[1,2], ports=[4,5],   vlans=local.vlans_for_vsphere}
@@ -166,9 +175,12 @@ locals {
 
   sw_xe_1_unused_ports = range(22, 23+1)
   sw_xe_2_unused_ports = range(22, 23+1)
-     # PLUS EXPANSION PORTS, NAMED DIFFERENTLY.
+     # Note: Besides standard ports, switch 10g-2 has 2 expansion modules  that
+     # provide 8 ports each.  Because they are expansion ports, they are named
+     # differently by Junos, and thus are currently not supported/configurable
+     # by this Terraform.  None of the expansion ports are currently in use.
 
-  # Note: Add map entries to this map for any new switches:
+  # Note: Add map entries to this map for unused ports of any new switches:
   unused_ports = {
     sw_xe_1 = local.sw_xe_1_unused_ports
     sw_xe_2 = local.sw_xe_2_unused_ports
