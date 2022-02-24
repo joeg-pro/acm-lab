@@ -5,12 +5,18 @@
 me=$(basename $0)
 # my_dir=$(dirname $(readlink -f $0))
 
-opt_flags="a"
+opt_flags="aup"
 emit_full_entry=0
+emit_just_username=0
+emit_just_password=0
 
 while getopts "$opt_flags" OPTION; do
    case "$OPTION" in
       a) emit_full_entry=1
+         ;;
+      u) emit_just_username=1
+         ;;
+      p) emit_just_password=1
          ;;
       ?) exit 1
          ;;
@@ -51,6 +57,12 @@ if [[ $emit_full_entry -eq 1 ]]; then
 else
    username=$(echo "$entry_data" | jq -r ".username")
    password=$(echo "$entry_data" | jq -r ".password")
-   echo "{\"username\": \"$username\", \"password\": \"$password\"}"
-fi
 
+   if [[ $emit_just_username -eq 1 ]]; then
+      echo "$username"
+   elif [[ $emit_just_password -eq 1 ]]; then
+      echo "$password"
+   else
+      echo "{\"username\": \"$username\", \"password\": \"$password\"}"
+   fi
+fi
