@@ -26,7 +26,7 @@ accounts_to_create="bmc-admin bmc-ome bmc-bmc"
 
 accounts=()
 for a in $accounts_to_create; do
-   creds=$(get-acm-lab-creds.sh -a "$a")
+   creds=$(get-acm-lab-creds -a "$a")
    accounts+=("$creds")
 done
 
