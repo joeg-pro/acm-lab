@@ -1,6 +1,8 @@
 
 # Defines VLAN, non-Fog port connections and inter-switch trunk connections.
 # (Basically: Everything but the fog-machine-to-slot configs.)
+#
+# Maintainer: Joe Gdaniec (@joeg-pro)
 
 terraform {
   required_version = ">= 0.15.0"
@@ -125,11 +127,18 @@ locals {
 
   # Libvirt/KVM machines get NIC2 access-mode connections to ??? 1Gb Network
   # Proposal:  Connect them to a general-use private 1Gb network?
-  # TEMPORARY: CONNECT TO MAINT PROV NETWORK DURING MACHINE CHECKOUT
   vlans_for_libvirt_hosts = ["test-slot-49-prov"]
+
+  # NAS hosts have NIC 2 connected to a parking VLAN w/o DHCP etc. 
+  # TBD: Update this TF to be able to disable the switch port instead.
   vlans_for_nas_hosts     = ["not-in-use"]
 
-  # VSphere Vapor and Mist hosts are connected into 1Gb Swithc 1 thusly:
+  # When onboarding a host for checkout, connect NIC 1 / 2 to the provisioning 
+  # and data networks of the Maint slot to allow PXE install of Maint RHEL image.
+  vlans_for_onboarding    = ["test-slot-49-prov", "test-slot-49-data"]
+
+
+  # 1Gb SWtich #1 connects Vapor01-02, Mist01-07 and Steam01-02 thusly:
 
   sw_ge_1_non_slot_machines = {
     mist_01  = {
@@ -146,14 +155,15 @@ locals {
     vapor_02 = {name="Vapor02", nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
     steam_01 = {name="Steam01", nics=[2], ports=[7],  vlans=local.vlans_for_nas_hosts    }
     steam_02 = {name="Steam02", nics=[2], ports=[8],  vlans=local.vlans_for_libvirt_hosts}
-    mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_vsphere_hosts}
+
+    mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_onboarding}
     mist_07  = {name="Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
   }
 
-  sw_ge_2_non_slot_machines = {
-    # None. All non-slot machines that used to be connected to this switch
-    # are now connected to Sw #1 instead.
-  }
+  # 1Gb Switches 2, 3 and 4 connect only to Fog machines managed via the slot-mgmt 
+  # TF config, and hence have no _non_slot_machine config defined here.
+
+  # 1GB Switch #5 connects Mist08-12 Thusly:
 
   sw_ge_5_non_slot_machines = {
     mist_08  = {name="Mist08",  nics=[2], ports=[18], vlans=local.vlans_for_libvirt_hosts}
@@ -168,7 +178,6 @@ locals {
   machine_connections = {
     sw_ge_1 = local.sw_ge_1_non_slot_machines
     sw_ge_5 = local.sw_ge_5_non_slot_machines
-    sw_ge_2 = local.sw_ge_2_non_slot_machines
   }
 
   #--- Port configs for other special ports ---
