@@ -125,18 +125,19 @@ locals {
   # (Future: define additional variables for other classes of machines.)
   vlans_for_vsphere_hosts = local.non_excluded_test_slot_vlan_names
 
-  # Libvirt/KVM machines get NIC2 access-mode connections to ??? 1Gb Network
-  # Proposal:  Connect them to a general-use private 1Gb network?
-  vlans_for_libvirt_hosts = ["test-slot-49-prov"]
+  # Libvirt/KVM machines have NOC 2 parted on the not-in-use network until
+  # a use case emerges for how to really use NIC 2.  (We don't leave on the
+  # maint slot to prevent accidental wipe-out of the box if someone were
+  # to trigger a PXE boot.)
+  vlans_for_libvirt_hosts = ["not-in-use"]
 
   # NAS hosts have NIC 2 connected to a parking VLAN w/o DHCP etc. 
   # TBD: Update this TF to be able to disable the switch port instead.
   vlans_for_nas_hosts     = ["not-in-use"]
 
-  # When onboarding a host for checkout, connect NIC 1 / 2 to the provisioning 
-  # and data networks of the Maint slot to allow PXE install of Maint RHEL image.
-  vlans_for_onboarding    = ["test-slot-49-prov", "test-slot-49-data"]
-
+  # When onboarding a host for checkout, connect NIC 2 to the provisioning
+  # networks of the Maint slot to allow PXE install of Maint RHEL image.
+  vlans_for_maint         = ["test-slot-49-prov"]
 
   # 1Gb SWtich #1 connects Vapor01-02, Mist01-07 and Steam01-02 thusly:
 
@@ -154,10 +155,10 @@ locals {
     vapor_01 = {name="Vapor01", nics=[2], ports=[5],  vlans=local.vlans_for_vsphere_hosts}
     vapor_02 = {name="Vapor02", nics=[2], ports=[6],  vlans=local.vlans_for_vsphere_hosts}
     steam_01 = {name="Steam01", nics=[2], ports=[7],  vlans=local.vlans_for_nas_hosts    }
-    steam_02 = {name="Steam02", nics=[2], ports=[8],  vlans=local.vlans_for_libvirt_hosts}
+    steam_02 = {name="Steam02", nics=[2], ports=[8],  vlans=local.vlans_for_nas_hosts    }
 
-    mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_onboarding}
-    mist_07  = {name="Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_libvirt_hosts}
+    mist_06  = {name="Mist06",  nics=[2], ports=[9],  vlans=local.vlans_for_maint}
+    mist_07  = {name="Mist07",  nics=[2], ports=[10], vlans=local.vlans_for_maint}
   }
 
   # 1Gb Switches 2, 3 and 4 connect only to Fog machines managed via the slot-mgmt 
@@ -169,8 +170,8 @@ locals {
     mist_08  = {name="Mist08",  nics=[2], ports=[18], vlans=local.vlans_for_libvirt_hosts}
     mist_09  = {name="Mist09",  nics=[2], ports=[19], vlans=local.vlans_for_libvirt_hosts}
     mist_10  = {name="Mist10",  nics=[2], ports=[20], vlans=local.vlans_for_libvirt_hosts}
-    mist_11  = {name="Mist11",  nics=[2], ports=[21], vlans=local.vlans_for_libvirt_hosts}
-    mist_12  = {name="Mist12",  nics=[2], ports=[22], vlans=local.vlans_for_libvirt_hosts}
+    mist_11  = {name="Mist11",  nics=[2], ports=[21], vlans=local.vlans_for_maint}
+    mist_12  = {name="Mist12",  nics=[2], ports=[22], vlans=local.vlans_for_maint}
   }
 
   # Note: Add map entries to this map for any new switches that have
