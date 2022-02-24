@@ -11,14 +11,15 @@ slot_06_fog_machines="fog19 fog20 fog21 fog22 fog23 fog24"
 slot_08_fog_machines="fog25 fog26 fog27 fog28 fog29 fog30"
 slot_10_fog_machines="fog31 fog32 fog33 fog34 fog35 fog36"
 slot_12_fog_machines="fog37 fog38 fog39 fog40 fog41 fog42"
+slot_14_fog_machines="fog43 fog44 fog45 fog46 fog47 fog48 fog49 fog50 fog51"
 
 vapor_machienss="vapor01 vapor02"
 mist_vsphere_machines="mist01 mist02 mist03 mist04 mist05"
 
 steam_machines="steam01 steam02"
-mist_kvm_machines="mist06 mist07"
+mist_kvm_machines="mist06 mist07 mist08 mist09 mist10 mist11 mist12"
 
-run_on_machines=""
+run_on_machines="$slot_14_fog_machines"
 
 # Creds entry names:
 accounts_to_create="bmc-admin bmc-ome bmc-bmc"

@@ -254,7 +254,9 @@ def main():
             nic_id = int(phys_port_nr)
             a_nic["id"] = nic_id
             a_nic["type"] = "xe"
-            a_nic["device_name"] = "/dev/enxxx%s" % nic_id
+            a_nic["device_name"] = "/dev/ens1f%d" % (nic_id-1)
+            # Note: The above only works for the first adapter/single adapter machines.
+            # Additional adapters probably appear as /dev/ens2, /dev/ens3....
             a_nic["mac_address"] = mac_addr
 
             connected_to_lab = False
