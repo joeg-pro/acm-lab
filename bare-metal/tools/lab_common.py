@@ -55,6 +55,11 @@ class LabBMCConnection(object):
             for_std_user = "admin"
          elif default_to_default:
             for_std_user = "default"
+         else:
+            # Allow env var to override creds used for general tools that
+            # don't already specify a particular set of creds.
+            if os.getenv("ACM_LAB_USE_BMC_ADMIN_CREDS"):
+               for_std_user = "admin"
 
       if use_default_bmc_info and for_std_user is None:
          for_std_user = "default"
