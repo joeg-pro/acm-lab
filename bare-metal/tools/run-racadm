@@ -21,7 +21,7 @@ if [[ -z "$machine_name" ]] || [[ -z "$1" ]]; then
 fi
 
 bmc_addr=$(get-machine-entry "$machine_name" | jq -r .bmc.address)
-bmc_username=$(get-acm-lab-creds -u "bmc")
-bmc_password=$(get-acm-lab-creds -p "bmc")
+bmc_username=$(get-acm-lab-creds -u "bmc-admin")
+bmc_password=$(get-acm-lab-creds -p "bmc-admin")
 
 sudo racadm -r "$bmc_addr" -u "$bmc_username" -p "$bmc_password" "$@"
