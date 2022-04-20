@@ -1,9 +1,8 @@
 #!/bin/bash
 
+# Informal.  WIP.
 # Does some pre-checks to catch common OCP install setup errors.
 
-# Informal.  WIP.
-#
 # Needs:
 # - Python 3
 # - yq

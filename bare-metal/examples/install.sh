@@ -1,9 +1,15 @@
 #!/bin/bash
 
-# Run get-ocp-baremetal-install.  It puts installer into bin directory.
-# This script then creates an ocp directory to hold install-state,
-# copies install-config.yaml into and does an install using the
-# openshift-baremetal-install found in ./bin.
+# Create an ./ocp directo containing "consumable" copy of install-config.yaml
+# and then runs ocp-baremetal-install from within that directory.
+#
+# The resulting install artifacts (eg. auth subcirectory) will be in ./ocp when done.
+
+# Pre-req:
+#
+# First run get-ocp-barmetal-install to fetch the appropraite ocp-baremetl-install
+# application for the OCP release you wnat to install.  That script puts the installer
+# in the ./bin directory where this one expects to find it.
 
 inst_dir="ocp"
 rm -rf $inst_dir
