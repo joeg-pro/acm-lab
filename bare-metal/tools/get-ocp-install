@@ -4,13 +4,20 @@
 #
 # - OCP 4 pull secret in $HOME/.secrets/ocp4-pull-secret.txt
 
-version=${1:-latest-4.6}
+version=${1:-latest-4.9}
 dest_dir=${2:-./bin}
 
 me=$(basename $0)
 dest_dir=$(readlink -f $dest_dir)
 
-cmd="openshift-install"
+# If we're called eg. get-ocp-baremetal-install, then we fetch the
+# baremetal installer.  Otherwise, we fetch the regular installer.
+
+if [[ $me == *-baremetal-* ]]; then
+   cmd="openshift-baremetal-install"
+else
+   cmd="openshift-install"
+fi
 pullsecret_file=$HOME/.secrets/ocp4-pull-secret.txt
 
 if [[ ! -f $pullsecret_file ]]; then
