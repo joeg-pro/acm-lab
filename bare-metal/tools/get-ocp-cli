@@ -1,0 +1,71 @@
+#!/bin/bash
+#
+# Fetches a OCP related client CLI from the OCP mirror site's client tree.
+
+me=$(basename $0)
+
+opt_flags="c:"
+while getopts "$opt_flags" OPTION; do
+   case "$OPTION" in
+      c) cli_name=$OPTARG
+         ;;
+      ?) exit 1
+         ;;
+   esac
+done
+shift "$(($OPTIND - 1))"
+
+version=${1:-latest-4.9}
+dest_dir=${2:-./bin}
+dest_dir=$(readlink -f $dest_dir)
+
+if [[ -z "$cli_name" ]]; then
+   echo "Fetching the oc cli."
+   cli_name="oc"
+fi
+
+if [[ "$cli_name" == "oc" ]]; then
+   file_prefix="openshift-client"
+else
+   file_prefix="$cli_name"
+fi
+
+extract_dir=$(mktemp -td $me.XXXXXXXXXX)
+cd $extract_dir
+
+mirror_site="https://mirror.openshift.com/pub/openshift-v4"
+
+# If we're using a floating version tag (eg. stable-4.9) then figure out and
+# announce the actual version we're dealing with.  In other similar utilities,
+# we get the version info by parsing the results of a directory listing, or
+# parsing the contents of the release.txt release note.  For this script,
+# we'll try the maybe more robust approach of relying what is in sha256sum.txt
+# since that is a well-know format.
+
+# We're assuming the shumsum file has exactly one entry for a versioned
+# file with naming pattern "<cli-name>-linux-<version>.tar.gz"
+
+if [[ $version == latest-* || $version == stable-* ]]; then
+   curl -s $mirror_site/clients/ocp/$version/sha256sum.txt \
+      | grep "$file_prefix-linux-.*\.tar\.gz" | awk -F ' ' '{print $2}' > ./file-to-get
+   file_to_get=$(cat ./file-to-get)
+
+   # Parse eg. opm-linux-4.9.20.tar.gz down to just the 4.9.20 part.
+   actual_version="${file_to_get%.tar.gz}"
+   actual_version="${actual_version##*-}"
+   echo "Using version: $actual_version"
+else
+   file_to_get="$file_prefix-linux-$version.tar.gz"
+   actual_version="$version"
+fi
+
+curl -s $mirror_site/clients/ocp/$version/$file_to_get | tar zxf - $cli_name
+
+mkdir -p "$dest_dir"
+cp -p $cli_name "$dest_dir/$cli_name-$actual_version"
+rm -f "$dest_dir/$cli_name"
+ln -s $cli_name-$actual_version "$dest_dir/$cli_name"
+
+cd /
+rm -rf "$extract_dir"
+
