@@ -117,6 +117,7 @@ class LabBMCConnection(object):
       self.system_power_on         = self.connection.system_power_on
       self.system_power_off        = self.connection.system_power_off
       self.system_reboot           = self.connection.system_reboot
+      self.system_shutdown         = self.connection.system_shutdown
 
       self.get_all_accounts     = self.connection.get_all_accounts
       self.get_account          = self.connection.get_account

@@ -45,6 +45,12 @@ class DoPowerActoin(Thread):
              blurt("%s: %s" % (m, msg))
           resp = bmc_conn.system_power_off(quiet=True)
 
+       elif action in ["shutdown"]:
+          msg = "Shutting Down" if power_state != "Off" else "Already Off"
+          if is_multi:
+             blurt("%s: %s" % (m, msg))
+          resp = bmc_conn.system_shutdown(quiet=True)
+
        elif action in ["on"]:
           msg = "Powering On" if power_state != "On" else "Already On"
           if is_multi:
@@ -65,7 +71,7 @@ def main():
 
    set_dbg_volume_level(0)
 
-   action_choices = ["status", "state", "forceoff", "off", "on", "reboot"]
+   action_choices = ["status", "state", "forceoff", "off", "shutdown", "on", "reboot"]
 
    parser = argparse.ArgumentParser()
    # parser.add_argument("machine" )

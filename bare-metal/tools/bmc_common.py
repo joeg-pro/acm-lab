@@ -953,6 +953,16 @@ class BMCConnection(object):
          if not quiet:
             nmsg("System was already powered OFF.")
 
+   def system_shutdown(self, quiet=True):
+      dbg("Processing system shutdown request.", level=self.dbg_msg_lvl_api_summary)
+      power_state = self.get_power_state()
+      dbg("Current power state: %s" % power_state, level=self.dbg_msg_lvl_api_summary)
+      if power_state.lower() != "off":
+         self._do_system_reset_action("GracefulShutdown")
+      else:
+         if not quiet:
+            nmsg("System was already powered OFF.")
+
    def system_reboot(self, quiet=True, force=False):
       # Handled as boot (if off) or reboot (if on) the system.
       dbg("Processing system reboot request.", level=self.dbg_msg_lvl_api_summary)
