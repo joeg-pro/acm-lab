@@ -34,7 +34,10 @@ def main():
 
    system_res = bmc_conn.get_system_resource()
    boot_props = system_res["Boot"]
-   boot_opts_coll_id = boot_props["BootOptions"]["@odata.id"]
+   try:
+       boot_opts_coll_id = boot_props["BootOptions"]["@odata.id"]
+   except KeyError:
+      raise BMCRequestError(bmc_conn, msg="BootOptions not present in System resource.")
    boot_order = boot_props["BootOrder"]
 
    # Retrieve the boot-options collection and then index them by id for
