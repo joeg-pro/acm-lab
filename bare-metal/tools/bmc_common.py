@@ -56,8 +56,6 @@ class BMCRequestError(BMCError):
          self.message    = None
          self.message_id = None
 
-         dbg("Raising error for RedFish response:\n%s" % json_dumps(_resp_json(resp)), level=9)
-
          msg_id = None
          resp_json = {}
          if resp.text is not None:
@@ -65,18 +63,23 @@ class BMCRequestError(BMCError):
             resp_content_type = resp_content_type.split(";")[0]
             if resp_content_type  == "application/json":
                resp_json = resp.json()
-         if "error" in resp_json:
-            # Use extended error info if present.
-            err = resp_json["error"]
-            try:
-               extended_info = err["@Message.ExtendedInfo"]
-               if isinstance(extended_info, list):
-                  extended_info = extended_info[0]
-                  msg_text = extended_info["Message"]
-                  msg_id   = extended_info["MessageId"]
-                  msg = "%s [%s]" % (msg_text,msg_id)
-            except KeyError:
-               msg = err["message"]
+               dbg("Raising error for RedFish response:\n%s" % json_dumps(resp_json), level=9)
+               if "error" in resp_json:
+                   # Use extended error info if present.
+                   err = resp_json["error"]
+                   try:
+                       extended_info = err["@Message.ExtendedInfo"]
+                       if isinstance(extended_info, list):
+                           extended_info = extended_info[0]
+                           msg_text = extended_info["Message"]
+                           msg_id   = extended_info["MessageId"]
+                           msg = "%s [%s]" % (msg_text,msg_id)
+                   except KeyError:
+                       msg = err["message"]
+            else:
+               dbg("Raising error for non-JSON RedFish response:\n%s" % resp.text, level=9)
+               msg = "An unspecified BMC request error occurred."
+
          else:
             msg = "An unspecified BMC request error occurred."
          self.message    = msg
@@ -218,10 +221,12 @@ class BMCConnection(object):
    def _check_for_error(self, resp):
 
       # dbg("Response status: %d" % resp.status_code)
+      # dbg("Response content-type: %s" % resp.headers.get("content-type"))
+      # dbg("Response text: %s" % resp.text)
 
-      # Note:  At least for Dell iDRAC, the HTTP status code 200 isn't reliable as it can
-      # report status 200 for some error conditions.  So treat 2XX other than 200 as Ok
-      # but we look deeper into the response for 200's.
+      # Note:  At least for Dell iDRAC, the HTTP status code 200 isn't reliable as it can report 
+      # status 200 for some error conditions.  So treat 2XX other than 200 as Ok but we look deeper 
+      # into the response for 200's.
 
       is_2xx = (resp.status_code // 100) == 2
       if is_2xx and resp.status_code != 200:
@@ -631,9 +636,10 @@ class BMCConnection(object):
       if self.this_system_id is not None:
          return self.this_system_id
 
-      # Since the Redfish service we're connected to is that provided by a BMC (vs. a
-      # multi-system management facility), it stands to reaosn there should only be
-      # one System resource.  So find it from the Systems collection.
+     # We believe the Reedfish service  we'rre connected to is that of a BMC vs. some multi-system
+     # management facility (system management application, chassis mgmt module, etc.).  If true, 
+     # it stands to reason that there would only be one entry in the System collection. So get
+     # that collection and verify there is only one thing there. 
 
       sys_collection = self.do_get(self._get_sys_collection_path())
       members = sys_collection["Members"]
@@ -644,6 +650,12 @@ class BMCConnection(object):
       # Members is an array of objects with at least an @odata.id property.
       self.this_system_id = members[0]["@odata.id"]
       dbg("Determined this system id: %s" % self.this_system_id, level=self.dbg_msg_lvl_api_details)
+
+      # As a further check, verify that the system-manager of this system resource is a BMC.
+      # (This method does the BMC check for us.)
+
+      self._get_this_system_manager_resource()
+
       return self.this_system_id
 
    def _get_this_system_resource(self, cacheable=True):
@@ -919,9 +931,19 @@ class BMCConnection(object):
          raise BMCRequestError(self, msg="Computer System doesn't provide a Reset action")
 
       action_path = action["target"]
-      supported_action_types = action["ResetType@Redfish.AllowableValues"]
-      if action_type not in supported_action_types:
-         raise BMCRequestError(self, msg="Computer System doesn't support Reset action type %s" % action_type)
+      reset_allowable_vaules = "ResetType@Redfish.AllowableValues"
+      if reset_allowable_vaules in action:   
+         supported_action_types = action[reset_allowable_vaules]
+         if action_type not in supported_action_types:
+            raise BMCRequestError(self, msg="Computer System doesn't support Reset action type %s" % action_type)
+      else:
+         if "@Redfish.ActionInfo" in action:
+            # Si[er,ocrp X11 (and maybe beyond) provide the allowable values via an Actioninfo resource,
+            # but GETting it requires the computer system to have a DCMS license installed.  So lets
+            # just assume we're good.
+            pass
+         else:
+            raise BMCRequestError(self, msg="Cannot determine if Computer System support Reset action type %s" % action_type)
 
       dbg("Resetting system (type: %s)" % action_type, level=self.dbg_msg_lvl_api_summary)
       dbg("Action Path: %s" % action_path, level=self.dbg_msg_lvl_api_details)
