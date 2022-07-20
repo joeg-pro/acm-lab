@@ -593,6 +593,7 @@ class _TR_RunTask(Thread):
          adjust_task_resource(bmc_task_res)
          if task_has_ended(bmc_task_res):
             blurt("Task has ended.", prefix=task.machine)
+            dbg_echo_resource("Ended Task", bmc_task_res, level=0)
             self._task_has_ended = True
             task.ending_task_res = bmc_task_res ## Should use a setter ##
          else:
@@ -638,8 +639,8 @@ class _TR_RunTask(Thread):
       if bmc_task_res is not None:
          bmc_task_status = bmc_task_res["TaskStatus"]
          bmc_task_state = bmc_task_res["TaskState"]
-         if bmc_task_state == "Completed":
-            short_task_name = task.get_short_task_name()
+         short_task_name = task.get_short_task_name()
+         if bmc_task_status == "Ok":
             blurt("Task %s has comopleted successfully." % short_task_name, prefix=machine)
          else:
             blurt("Task %s has failed.  Ending state/status: %s/%s" %
