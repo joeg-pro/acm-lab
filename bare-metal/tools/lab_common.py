@@ -593,7 +593,7 @@ class _TR_RunTask(Thread):
          adjust_task_resource(bmc_task_res)
          if task_has_ended(bmc_task_res):
             blurt("Task has ended.", prefix=task.machine)
-            dbg_echo_resource("Ended Task", bmc_task_res, level=0)
+            dbg_echo_resource("Ended Task", bmc_task_res, level=9)
             self._task_has_ended = True
             task.ending_task_res = bmc_task_res ## Should use a setter ##
          else:
