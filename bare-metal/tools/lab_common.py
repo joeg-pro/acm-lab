@@ -640,7 +640,7 @@ class _TR_RunTask(Thread):
          bmc_task_status = bmc_task_res["TaskStatus"]
          bmc_task_state = bmc_task_res["TaskState"]
          short_task_name = task.get_short_task_name()
-         if bmc_task_status == "Ok":
+         if bmc_task_status == "OK":
             blurt("Task %s has comopleted successfully." % short_task_name, prefix=machine)
          else:
             blurt("Task %s has failed.  Ending state/status: %s/%s" %
