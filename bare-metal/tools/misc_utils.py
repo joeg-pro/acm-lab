@@ -44,9 +44,11 @@ def nmsg(msg, *args, prefix=None):
       eprint("Note: %s" % msg, *args)
 
 def blurt(*args, **kwargs):
+   prefix = None
    if "prefix" in kwargs:
       prefix = kwargs["prefix"]
       del kwargs["prefix"]
+   if prefix:
       print("[%s]" % prefix, *args, **kwargs)
    else:
       print(*args, **kwargs)

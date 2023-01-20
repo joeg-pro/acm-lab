@@ -721,17 +721,17 @@ class BMCConnection(object):
    def get_this_system_resource(self, cacheable=True):
       return self._get_this_system_resource(cacheable=cacheable)
 
-   def _get_this_system_manager_id(self):
+   def _get_this_system_manager_id(self, cacheable=True):
 
       # We expect the BMC to be represented as the single Manager of the System resource.
       # So look for the first (assumed only) ManagedBy Link of the System resource.
 
-      this_sys_res = self._get_this_system_resource()
+      this_sys_res = self._get_this_system_resource(cacheable=cacheable)
       return this_sys_res["Links"]["ManagedBy"][0]["@odata.id"]
 
    def _get_this_system_manager_resource(self, cacheable=True):
 
-      res_id = self._get_this_system_manager_id()
+      res_id = self._get_this_system_manager_id(cacheable=cacheable)
       res = self._get_resource(res_id, cacheable=cacheable)
 
       # Sanity check.  Make sure is a BMC.

@@ -1,0 +1,176 @@
+#!/bin/python3
+
+# Author: J. M. Gdaniec, Jan 2023
+#
+# Dell Specific
+
+from lab_common import *
+
+import argparse
+import requests
+import json
+import sys
+import time
+import threading
+import traceback
+
+from threading import Thread
+
+output_lock = threading.Lock()
+
+class ClearJobQueue(Thread):
+
+   def __init__(self, args, machine, is_multi, use_force):
+      Thread.__init__(self)
+      self.args = args
+      self.machine = machine
+      self.is_multi = is_multi
+      self.use_force = use_force
+
+   def run(self):
+
+      args = self.args
+      m = self.machine
+      is_multi = self.is_multi
+      use_force = self.use_force
+
+      bmc_conn = LabBMCConnection.create_connection(m, args)
+      self.bmc_conn = bmc_conn
+
+      service_root_res = bmc_conn.get_service_root_resource()
+      system_mgr_res = bmc_conn.get_system_manager_resource()
+
+      dell_oem_links = system_mgr_res["Links"]["Oem"]["Dell"]
+      dell_job_service_id = dell_oem_links["DellJobService"]["@odata.id"]
+      dell_job_service_res = bmc_conn.get_resource(dell_job_service_id)
+      delete_job_queue_target = dell_job_service_res["Actions"]["#DellJobService.DeleteJobQueue"]["target"]
+
+      dell_lc_service_id = dell_oem_links["DellLCService"]["@odata.id"]
+      dell_lc_service_res = bmc_conn.get_resource(dell_lc_service_id)
+      self.get_remote_api_status_target = dell_lc_service_res["Actions"]["#DellLCService.GetRemoteServicesAPIStatus"]["target"]
+
+      action_target = delete_job_queue_target
+      action_body = {"JobID":"JID_CLEARALL_FORCE"} if use_force else {"JobID":"JID_CLEARALL"}
+
+      m_pfx = m if is_multi else None
+
+      resp_body = bmc_conn.perform_action(action_target, action_body)
+      if not use_force:
+         blurt("Job queue cleared.", prefix=m_pfx)
+         return
+      else:
+         blurt("Job queue force-cleared.", prefix=m_pfx)
+
+      # When _FORCE is used, the Redfish service/Licecycle controller is restarted and we
+      # don't want to complete our work until the restart is complete.  But iDRAC makes this
+      # tricky since there is some latency before the restart happens (ugh).
+      #
+      # So we first wait until we can't get the system resource anymore.  THis is a decent
+      # telltail that the restart is in progress.  Then we wait until we can get the
+      # system resource again, and then finally we wait until we can get Lifecycle Controller
+      # status as is done in Dell's DeleteJobQueueREDFISH.py script.
+
+      redfish_is_ready = self.redfish_is_ready()
+      wait_iter = 0
+      while redfish_is_ready:
+         if wait_iter == 0:
+            blurt("Waiting for Redfish/Lifecycle Controller to restart.", prefix=m_pfx)
+            waiting_msg_blurted = True
+         elif wait_iter % 5 == 0:
+            blurt("Still waiting for restart.", prefix=m_pfx)
+         wait_iter += 1
+         time.sleep(1)
+         redfish_is_ready = self.redfish_is_ready()
+      #
+
+      blurt("Redfish/Lifecycle Controller are restarting.", prefix=m_pfx)
+
+      wait_iter = 0
+      while not redfish_is_ready:
+         if wait_iter == 0:
+            blurt("Waiting for Redfish to become ready.", prefix=m_pfx)
+         elif wait_iter % 5 == 0:
+            blurt("Still waiting for Redfish to become ready.", prefix=m_pfx)
+         wait_iter += 1
+         time.sleep(2)
+         redfish_is_ready = self.redfish_is_ready()
+      #
+
+      blurt("Redfish is now ready again.", prefix=m_pfx)
+
+      # The following checks for Lifecycle Controller being ready are patterned
+      # after code in Dell's DeleteJobQueueREDFISH.py script.  But this extra check
+      # might not be needed because it seems the following check is successful
+      # as soon as the redfish-is-ready checks above are successful.
+
+      lc_is_ready = self.is_lc_ready()
+      wait_iter = 0
+      while not lc_is_ready:
+         if wait_iter == 0:
+            blurt("Waiting for Lifecycle Controller to become ready.", prefix=m_pfx)
+         elif wait_iter % 5 == 0:
+            blurt("Still waiting for Lifecycle Controller to become ready.", prefix=m_pfx)
+         wait_iter += 1
+         time.sleep(2)
+         redfish_is_ready = self.redfish_is_ready()
+      #
+
+      blurt("Lifecycle Controller is now ready again.", prefix=m_pfx)
+
+   def redfish_is_ready(self):
+      try:
+         dbg("Checking is Redfish is ready.")
+         self.bmc_conn.get_system_resource(cacheable=False)
+         dbg("Redfish is ready.")
+         return True
+      except BMCRequestError:
+         dbg("Redfish is not ready.")
+         return False
+
+   def is_lc_ready(self):
+      try:
+         dbg("Checking is LC is ready.")
+         action_target = self.get_remote_api_status_target
+         action_body = {}
+         resp_body = self.bmc_conn.perform_action(action_target, action_body)
+         # Will return 200 (no exception) if ready.
+         dbg("LC is ready.")
+         return True
+      except BMCRequestError:
+         dbg("LC is not ready.")
+         return False
+
+# Main:
+
+def main():
+
+   set_dbg_volume_level(0)
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machines", nargs="+" )
+   parser.add_argument("--force", action="store_true")
+
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+   machines = args.machines
+   use_force = args.force
+
+   is_multi = len(machines) > 1
+   threads = []
+   for m in machines:
+      t = ClearJobQueue(args, m, is_multi, use_force)
+      t.start()
+      threads.append(t)
+   for t in threads:
+      t.join()
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+
