@@ -2,7 +2,7 @@
 
 # Author: J. M. Gdaniec, Jan 2023
 #
-# Dell Specific
+# Hopefully not Dell specific.
 
 from lab_common import *
 
@@ -46,6 +46,15 @@ class ShowJobs(Thread):
 
       all_jobs = bmc_conn.get_collection_members(job_collection_id)
 
+      msg_job_kinds = {
+         StateFilter.ALL:        "",
+         StateFilter.RUNNING:    "running",
+         StateFilter.COMPLETED:  "completed",
+         StateFilter.SUCCESSFUL: "successful",
+         StateFilter.FAILED:     "failed"
+      }
+      msg_job_kind = msg_job_kinds[state_filter]
+
       jobs = []
       msg_word = None
       if state_filter == StateFilter.ALL:
@@ -54,16 +63,12 @@ class ShowJobs(Thread):
          for j in all_jobs:
             include_it = False
             if state_filter == StateFilter.RUNNING:
-               msg_job_kind = "running"
                include_it = job_is_in_progress(j)
             elif state_filter == StateFilter.COMPLETED:
-               msg_job_kind = "completed"
                include_it = job_has_ended(j)
             elif state_filter == StateFilter.SUCCESSFUL:
-               msg_job_kind = "successful"
                include_it = job_completed_successfully(j)
             elif state_filter == StateFilter.FAILED:
-               msg_job_kind = "failed"
                include_it = job_failed(j)
 
             if include_it:

@@ -111,6 +111,7 @@ class LabBMCConnection(object):
       self.start_task     = self.connection.start_task
       self.get_task       = self.connection.get_task
       self.perform_action = self.connection.perform_action
+      self.get_last_response_headers = self.connection.get_last_response_headers
 
       self.get_power_state         = self.connection.get_power_state
       self.get_system_power_state  = self.connection.get_power_state

@@ -201,6 +201,8 @@ class BMCConnection(object):
       self.dbg_msg_lvl_rf_ctrl_requests  = 6 # Session control requests
       self.dbg_msg_lvl_rf_read_requests  = 6 # Resrouce GETs only
       self.dbg_msg_lvl_rf_write_requests = 6 # PUTs, PATCHs, POSTs, DELETEs
+      self.dbg_msg_lvl_rf_req_retry = 11 # Redfish Request retry logic.
+
 
       # Cache of resources we've fetched.
       self.resources = dict()
@@ -290,6 +292,8 @@ class BMCConnection(object):
    # Issue request and do one retry if we caught the BMC in a not-ready state.
    def _req_and_retry(self, func, *args, **kwargs):
 
+      dbg_msg_lvl = self.dbg_msg_lvl_rf_req_retry
+
       # UGH: Dell iDRAC specific stuff.
 
       # iDRAC seems prone to rejecting requests with an "I'm not ready" response indicated
@@ -305,7 +309,9 @@ class BMCConnection(object):
 
       resp = func(*args, **kwargs)
       status_code = resp.status_code
+      dbg("req-retry: Request returned Status code %d." % status_code, level=dbg_msg_lvl)
       if status_code not in [400, 500]:
+         dbg("req-retry: No need for retry.", level=dbg_msg_lvl)
          return resp
 
       msg_id = None
@@ -317,6 +323,7 @@ class BMCConnection(object):
          msg = extended_info["Message"]
       except:
          # Oops, tripped over ourselves.  Give up retry attempt.
+         dbg("req-retry: Oops. Tripped up trying to interpret response body.", level=dbg_msg_lvl)
          return resp
 
       # Dell iDRAC sometimes returns some not-ready kind of errors.  Detect common
@@ -332,13 +339,13 @@ class BMCConnection(object):
 
          if msg_nr == "SWC0700":
             # Error is an "iDRAC not ready one.  Wait and retry.
-            dbg("Got iDRAC-not-ready error. Retrying request after pause.", level=self.dbg_msg_lvl_rf_requests)
+            dbg("req-retry: Got iDRAC-not-ready error. Retrying request after pause.", level=dbg_msg_lvl)
             time.sleep(5)  # Arbitrary, but kinda recommended by corrective-action in iDRAC response.
             resp = func(*args, **kwargs)
          elif msg_nr == "SYS518":
             # Error Msg: "iDRAC is currently unable to display any information because data sources are unavailable"
-            dbg("Got iDRAC-data-sources-unavailable error. Retrying request after pause.",
-                level=self.dbg_msg_lvl_rf_requests)
+            dbg("req-retry: Got iDRAC-data-sources-unavailable error. Retrying request after pause.",
+                level=dbg_msg_lvl)
             time.sleep(5)
             resp = func(*args, **kwargs)
             #
@@ -570,6 +577,8 @@ class BMCConnection(object):
    def perform_action(self, action_path, action_body):
       return self._perform_action(action_path, action_body)
 
+   def get_last_response_headers(self):
+      return self.last_response.headers
 
    # Collection CRUD.
 
