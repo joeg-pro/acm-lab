@@ -97,22 +97,23 @@ class BMCRequestError(BMCError):
    def msg_id(self):
       return self.message_id
 
-# All Redfish task states:
+# All Redfish DMTF Task states:
 #
 # New, Pending
 # Service
 # Starting, Running, Stopping, Completed
 # Cancelling, Cancelled
-# Exception, Interrupted, Interrupted
+# Exception, Interrupted, Killed (deprecated)
 # Suspended
+# Continue?
 #
 # Ref: http://redfish.dmtf.org/schemas/DSP2046_2019.1.html  (Vers s2019.1)
 
-_task_states_waiting = ["New", "Pending"]
-_task_states_in_prog = ["Service", "Running", "Starting", "Stopping", "Cancelling"]
-_task_states_paused  = ["Suspended"]
-_task_states_final   = ["Completed", "Cancelled", "Exception", "Interrupted", "Killed"]
-_task_state_normal_completion = ["Completed"]
+_task_states_waiting  = ["New", "Pending"]
+_task_states_in_prog  = ["Service", "Running", "Starting", "Stopping", "Cancelling"]
+_task_states_paused   = ["Suspended"]
+_task_states_final    = ["Completed", "Cancelled", "Interrupted", "Killed"]
+_task_state_completed = ["Completed"]
 
 def task_is_waiting(task_res):
    return task_res["TaskState"] in _task_states_waiting
@@ -123,8 +124,54 @@ def task_has_ended(task_res):
 def task_is_in_progress(task_res):
    return task_res["TaskState"] in _task_states_in_prog
 
-def task_competed_normally(task_res):
-   return task_res["TaskState"] in _task_state_normal_completion
+def task_completed_successfully(task_res):
+   return task_res["TaskState"] in _task_state_completed and task_res["TaskStatus"] in ["OK"]
+
+def task_failed(task_res):
+   return task_res["TaskState"] in _task_state_completed and task_res["TaskStatus"] in ["Critical"]
+
+# All Redfish DMTF Job states:  (similar to but not identical to Task states)
+#
+# New, Pending
+# Service
+# Starting, Running, Stopping, Completed
+# Cancelled (note: No Cancelling like for Tasks)
+# Exception
+# Interrupted
+# Suspended, Continue
+# UserIntervention
+
+# The following categorization and jon-state testing function are to a good degree
+# guesswork based on observation of behavior on Dell iDRAC, as the DMTF schema doc
+# is very vague on the meaning/application of these states.  The meaning/use of
+# Interrupted and Exception are particularly unclear...are they final states?
+
+_job_states_waiting    = ["New", "Pending"]
+_job_states_in_prog    = ["Service", "Running", "Starting", "Stopping", "Cancelling"]
+_job_states_paused     = ["Suspended", "UserIntervention"]
+_job_states_mysterious = ["Exception"]
+_job_states_final      = ["Completed", "Cancelled", "Interrupted"]
+_job_state_completed   = ["Completed"]
+_job_state_cancelled   = ["Cancelled"]
+
+# JobStatus values: OK, Warning, Critical
+#
+# Ref: http://redfish.dmtf.org/schemas/DSP2046_2019.1.html  (Vers s2019.1)
+
+def job_is_waiting(job_res):
+   return job_res["JobState"] in _job_states_waiting
+
+def job_has_ended(job_res):
+   return job_res["JobState"] in _job_states_final
+
+def job_is_in_progress(job_res):
+   return job_res["JobState"] in _job_states_in_prog
+
+def job_completed_successfully(job_res):
+   return job_res["JobState"] in _job_state_completed and job_res["JobStatus"] in ["OK"]
+
+def job_failed(job_res):
+   return job_res["JobState"] in _job_state_completed and job_res["JobStatus"] in ["Critical"]
 
 class BMCConnection(object):
 

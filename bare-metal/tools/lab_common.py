@@ -254,7 +254,12 @@ def get_machine_entry(machine_name, for_std_user=None, use_default_bmc_info=Fals
 #
 
 
-# -- Iterating across a bunch of machines to do the same thing ---
+# -- Iterating across a bunch of machines to do the same thing asynchronously ---
+
+def cast_to_dmtf_task(task_res):
+   cast_task_res = task_res.copy()
+   adjust_task_resource(cast_task_res)
+   return cast_task_res
 
 def adjust_task_resource(task_res):
 
@@ -283,10 +288,21 @@ def adjust_task_resource(task_res):
       msg_id = "NO-MSGID"
 
    if job_state == "Scheduled":
-      task_res["TaskState"] = "Pending"
+      task_res["TaskState"]  = "Pending"
+      task_res["TaskStatus"] = "OK"
 
    elif job_state == "Running":
-      task_res["TaskState"] = "Running"
+      task_res["TaskState"]  = "Running"
+      task_res["TaskStatus"] = "OK"
+
+   elif job_state == "Failed":
+      task_res["TaskState"]  = "Completed"
+      task_res["TaskStatus"] = "Critical"
+
+   elif job_state == "RebootCompleted":
+      # (Seein in associatioin with msg id RED030)
+      task_res["TaskState"]  = "Completed"
+      task_res["TaskStatus"] = "OK"
 
    elif job_state == "Completed":
 
@@ -295,7 +311,7 @@ def adjust_task_resource(task_res):
       # the job ended with errors if we can't match up the job-id against the
       # (seemingly open-ended) list of success messages.
 
-      task_res["TaskState"] = "Exception"
+      task_res["TaskState"]  = "Completed"
       task_res["TaskStatus"] = "Critical"
 
       if msg_id in ["RED001", "JCP007", "PR19"]:

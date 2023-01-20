@@ -1,0 +1,161 @@
+#!/bin/python3
+
+# Author: J. M. Gdaniec, Jan 2023
+#
+# Dell Specific
+
+from lab_common import *
+
+import argparse
+import requests
+import json
+import sys
+import threading
+import traceback
+
+from enum import Enum
+from threading import Thread
+
+output_lock = threading.Lock()
+
+StateFilter = Enum("StateFilter", ["ALL", "RUNNING", "COMPLETED", "SUCCESSFUL", "FAILED"])
+state_filter = StateFilter.RUNNING
+
+class ShowJobs(Thread):
+
+   def __init__(self, args, machine, is_multi):
+      Thread.__init__(self)
+      self.args = args
+      self.machine = machine
+      self.is_multi = is_multi
+
+   def run(self):
+
+      args = self.args
+      m = self.machine
+      is_multi = self.is_multi
+
+      bmc_conn = LabBMCConnection.create_connection(m, args)
+
+      service_root_res = bmc_conn.get_service_root_resource()
+      job_service_id = service_root_res["JobService"]["@odata.id"]
+      job_service_res = bmc_conn.get_resource(job_service_id)
+      job_collection_id = job_service_res["Jobs"]["@odata.id"]
+
+      # Get all jobs and filter down to those we're interested in.
+
+      all_jobs = bmc_conn.get_collection_members(job_collection_id)
+
+      jobs = []
+      msg_word = None
+      if state_filter == StateFilter.ALL:
+         jobs = all_jobs
+      else:
+         for j in all_jobs:
+            include_it = False
+            if state_filter == StateFilter.RUNNING:
+               msg_job_kind = "running"
+               include_it = job_is_in_progress(j)
+            elif state_filter == StateFilter.COMPLETED:
+               msg_job_kind = "completed"
+               include_it = job_has_ended(j)
+            elif state_filter == StateFilter.SUCCESSFUL:
+               msg_job_kind = "successful"
+               include_it = job_completed_successfully(j)
+            elif state_filter == StateFilter.FAILED:
+               msg_job_kind = "failed"
+               include_it = job_failed(j)
+
+            if include_it:
+               jobs.append(j)
+      #
+
+      # Output formatting.
+
+      machine_suffix = " on machine %s" % m if is_multi else ""
+
+      if not jobs:
+         # No jobs to show.
+         if state_filter == StateFilter.ALL:
+            none_found_msg = "No jobs found%s." % machine_suffix
+         else:
+            none_found_msg = "No %s jobs found%s." % (msg_job_kind, machine_suffix)
+         with output_lock:
+            blurt(none_found_msg)
+         return
+
+      output = None
+      for j in jobs:
+         if j["Messages@odata.count"] > 0:
+            msg = j["Messages"][0]["Message"]
+         else:
+            msg = "<No messsage>"
+
+         line = "%s: Name: %s, State: %s/%s, Message: %s" % \
+            (j["Id"], j["Name"], j["JobState"], j["JobStatus"], msg)
+         output = line if output is None else output + "\n" + line
+
+      intro_msg = None
+      if state_filter == StateFilter.ALL:
+         if is_multi:
+            intro_msg = "Jobs%s" % machine_suffix
+      else:
+         intro_msg = "%s jobs%s" % (msg_job_kind.capitalize(), machine_suffix)
+
+      with output_lock:
+         if intro_msg:
+            blurt("%s:\n" % intro_msg)
+         blurt(output)
+         if is_multi:
+            blurt("")
+
+# Main:
+
+def main():
+
+   set_dbg_volume_level(2)
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument("machines", nargs="+" )
+   filtering = parser.add_mutually_exclusive_group()
+   filtering.add_argument("--all", action="store_true")
+   filtering.add_argument("--running", action="store_true")
+   filtering.add_argument("--completed", action="store_true")
+   filtering.add_argument("--failed", action="store_true")
+   filtering.add_argument("--successful", action="store_true")
+
+   LabBMCConnection.add_bmc_login_argument_definitions(parser)
+
+   args = parser.parse_args()
+   machines = args.machines
+
+   global state_filter
+   if args.all:
+      state_filter = StateFilter.ALL
+   elif args.running:
+      state_filter = StateFilter.RUNNING
+   elif args.completed:
+      state_filter = StateFilter.COMPLETED
+   elif args.successful:
+      state_filter = StateFilter.SUCCESSFUL
+   elif args.failed:
+      state_filter = StateFilter.FAILED
+
+   is_multi = len(machines) > 1
+   threads = []
+   for m in machines:
+      t = ShowJobs(args, m, is_multi)
+      t.start()
+      threads.append(t)
+   for t in threads:
+      t.join()
+
+if __name__ == "__main__":
+   try:
+      main()
+   except BMCRequestError as exc:
+      die(str(exc))
+   except Exception:
+      traceback.print_exc()
+      die("Unhandled exception!")
+

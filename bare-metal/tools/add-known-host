@@ -12,4 +12,4 @@ if [[ -z "$host" ]]; then
 fi
 
 ssh-keygen -R $host
-ssh-keyscan -t rsa -H $host >> ~/.ssh/known_hosts
+ssh-keyscan -t ecdsa $host >> ~/.ssh/known_hosts
