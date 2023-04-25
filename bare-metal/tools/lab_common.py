@@ -126,6 +126,9 @@ class LabBMCConnection(object):
       self.delete_account       = self.connection.delete_account
       self.set_account_password = self.connection.set_account_password
 
+   def __del__(self):
+      del self.connection
+
    def _get_bmc_cfg(self, machine_name, for_std_user=None, use_default_bmc_info=False):
 
       m_entry = None
