@@ -37,7 +37,9 @@ class DoOneTimeBoot(Thread):
        patch_body = {
           "Boot": {
              "BootSourceOverrideEnabled": override_enabled,
-             "BootSourceOverrideMode":    "UEFI",
+             # Dell: Don't set BootSourceOverrideMethod as that causes a trip
+             # through Lifecycle Controller as part of the reboot.
+             # "BootSourceOverrideMode":    "UEFI",
              "BootSourceOverrideTarget":   boot_target
           }
        }
