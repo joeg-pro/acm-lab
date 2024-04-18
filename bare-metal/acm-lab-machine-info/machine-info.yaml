@@ -18,6 +18,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e4:12
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 00
     nic2:
       id: 2
       type: ge
@@ -25,6 +27,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e4:13
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 01
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -54,6 +58,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e2:12
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 02
     nic2:
       id: 2
       type: ge
@@ -61,6 +67,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e2:13
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 03
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -90,6 +98,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e4:32
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 04
     nic2:
       id: 2
       type: ge
@@ -97,6 +107,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e4:33
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 05
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -126,6 +138,8 @@ machines:
       mac_address: 2c:ea:7f:d5:db:b2
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 06
     nic2:
       id: 2
       type: ge
@@ -133,6 +147,8 @@ machines:
       mac_address: 2c:ea:7f:d5:db:b3
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 07
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -162,6 +178,8 @@ machines:
       mac_address: 6c:2b:59:c5:c4:2a
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 08
     nic2:
       id: 2
       type: ge
@@ -169,6 +187,8 @@ machines:
       mac_address: 6c:2b:59:c5:c4:2b
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 09
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -198,6 +218,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e0:ca
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 10
     nic2:
       id: 2
       type: ge
@@ -205,6 +227,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e0:cb
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 11
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -234,6 +258,8 @@ machines:
       mac_address: 2c:ea:7f:d5:f1:22
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 12
     nic2:
       id: 2
       type: ge
@@ -241,6 +267,8 @@ machines:
       mac_address: 2c:ea:7f:d5:f1:23
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 13
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -270,6 +298,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e2:4a
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 14
     nic2:
       id: 2
       type: ge
@@ -277,6 +307,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e2:4b
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 15
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -306,6 +338,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e4:22
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 16
     nic2:
       id: 2
       type: ge
@@ -313,6 +347,8 @@ machines:
       mac_address: 2c:ea:7f:d5:e4:23
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 17
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -342,6 +378,8 @@ machines:
       mac_address: 6c:2b:59:c5:c4:82
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 18
     nic2:
       id: 2
       type: ge
@@ -349,6 +387,8 @@ machines:
       mac_address: 6c:2b:59:c5:c4:83
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 19
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -378,6 +418,8 @@ machines:
       mac_address: 2c:ea:7f:d5:de:52
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 20
     nic2:
       id: 2
       type: ge
@@ -385,6 +427,8 @@ machines:
       mac_address: 2c:ea:7f:d5:de:53
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 21
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -414,6 +458,8 @@ machines:
       mac_address: 2c:ea:7f:d5:ef:12
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 22
     nic2:
       id: 2
       type: ge
@@ -421,6 +467,8 @@ machines:
       mac_address: 2c:ea:7f:d5:ef:13
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 23
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -450,6 +498,8 @@ machines:
       mac_address: 2c:ea:7f:e0:ff:b2
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 24
     nic2:
       id: 2
       type: ge
@@ -457,6 +507,8 @@ machines:
       mac_address: 2c:ea:7f:e0:ff:b3
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 25
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -486,6 +538,8 @@ machines:
       mac_address: 2c:ea:7f:e1:00:aa
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 26
     nic2:
       id: 2
       type: ge
@@ -493,6 +547,8 @@ machines:
       mac_address: 2c:ea:7f:e1:00:ab
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 27
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -522,6 +578,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:ea
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 28
     nic2:
       id: 2
       type: ge
@@ -529,6 +587,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:eb
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 29
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -558,6 +618,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:ca
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 30
     nic2:
       id: 2
       type: ge
@@ -565,6 +627,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:cb
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 31
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -594,6 +658,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:ba
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 32
     nic2:
       id: 2
       type: ge
@@ -601,6 +667,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:bb
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 33
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -630,6 +698,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:d2
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 34
     nic2:
       id: 2
       type: ge
@@ -637,6 +707,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:d3
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-02
+      plugged_to_switch_port: 35
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -666,6 +738,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:52
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 00
     nic2:
       id: 2
       type: ge
@@ -673,6 +747,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:53
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 01
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -702,6 +778,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:c2
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 02
     nic2:
       id: 2
       type: ge
@@ -709,6 +787,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:c3
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 03
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -738,6 +818,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:4a
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 04
     nic2:
       id: 2
       type: ge
@@ -745,6 +827,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:4b
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 05
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -774,6 +858,8 @@ machines:
       mac_address: 2c:ea:7f:e1:00:e2
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 06
     nic2:
       id: 2
       type: ge
@@ -781,6 +867,8 @@ machines:
       mac_address: 2c:ea:7f:e1:00:e3
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 07
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -810,6 +898,8 @@ machines:
       mac_address: 2c:ea:7f:e0:e7:72
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 08
     nic2:
       id: 2
       type: ge
@@ -817,6 +907,8 @@ machines:
       mac_address: 2c:ea:7f:e0:e7:73
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 09
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -846,6 +938,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:6a
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 10
     nic2:
       id: 2
       type: ge
@@ -853,6 +947,8 @@ machines:
       mac_address: 2c:ea:7f:e1:01:6b
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-03
+      plugged_to_switch_port: 11
   eng_lab_networking:
     nic2:
       for_nic_id: 2
@@ -882,6 +978,8 @@ machines:
       mac_address: 78:ac:44:4c:da:a8
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 00
     nic2:
       id: 2
       type: ge
@@ -889,6 +987,8 @@ machines:
       mac_address: 78:ac:44:4c:da:a9
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 01
     nic3:
       id: 3
       type: ge
@@ -932,6 +1032,8 @@ machines:
       mac_address: 78:ac:44:4d:3b:38
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 02
     nic2:
       id: 2
       type: ge
@@ -939,6 +1041,8 @@ machines:
       mac_address: 78:ac:44:4d:3b:39
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 03
     nic3:
       id: 3
       type: ge
@@ -982,6 +1086,8 @@ machines:
       mac_address: 78:ac:44:4c:da:90
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 04
     nic2:
       id: 2
       type: ge
@@ -989,6 +1095,8 @@ machines:
       mac_address: 78:ac:44:4c:da:91
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 05
     nic3:
       id: 3
       type: ge
@@ -1032,6 +1140,8 @@ machines:
       mac_address: 78:ac:44:4c:da:b4
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 06
     nic2:
       id: 2
       type: ge
@@ -1039,6 +1149,8 @@ machines:
       mac_address: 78:ac:44:4c:da:b5
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 07
     nic3:
       id: 3
       type: ge
@@ -1082,6 +1194,8 @@ machines:
       mac_address: 78:ac:44:4d:42:c4
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 08
     nic2:
       id: 2
       type: ge
@@ -1089,6 +1203,8 @@ machines:
       mac_address: 78:ac:44:4d:42:c5
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 09
     nic3:
       id: 3
       type: ge
@@ -1132,6 +1248,8 @@ machines:
       mac_address: 78:ac:44:4c:da:ac
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 10
     nic2:
       id: 2
       type: ge
@@ -1139,6 +1257,8 @@ machines:
       mac_address: 78:ac:44:4c:da:ad
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 11
     nic3:
       id: 3
       type: ge
@@ -1182,6 +1302,8 @@ machines:
       mac_address: 78:ac:44:4d:3b:34
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 12
     nic2:
       id: 2
       type: ge
@@ -1189,6 +1311,8 @@ machines:
       mac_address: 78:ac:44:4d:3b:35
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 13
     nic3:
       id: 3
       type: ge
@@ -1232,6 +1356,8 @@ machines:
       mac_address: 78:ac:44:4d:42:e4
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 14
     nic2:
       id: 2
       type: ge
@@ -1239,6 +1365,8 @@ machines:
       mac_address: 78:ac:44:4d:42:e5
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 15
     nic3:
       id: 3
       type: ge
@@ -1282,6 +1410,8 @@ machines:
       mac_address: 78:ac:44:4d:3c:f0
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 16
     nic2:
       id: 2
       type: ge
@@ -1289,6 +1419,8 @@ machines:
       mac_address: 78:ac:44:4d:3c:f1
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 17
     nic3:
       id: 3
       type: ge
@@ -1332,6 +1464,8 @@ machines:
       mac_address: 78:ac:44:4c:da:2c
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 18
     nic2:
       id: 2
       type: ge
@@ -1339,6 +1473,8 @@ machines:
       mac_address: 78:ac:44:4c:da:2d
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 19
     nic3:
       id: 3
       type: ge
@@ -1382,6 +1518,8 @@ machines:
       mac_address: 78:ac:44:4c:db:0c
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 20
     nic2:
       id: 2
       type: ge
@@ -1389,6 +1527,8 @@ machines:
       mac_address: 78:ac:44:4c:db:0d
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 21
     nic3:
       id: 3
       type: ge
@@ -1432,6 +1572,8 @@ machines:
       mac_address: 78:ac:44:4c:da:f4
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 22
     nic2:
       id: 2
       type: ge
@@ -1439,6 +1581,8 @@ machines:
       mac_address: 78:ac:44:4c:da:f5
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 23
     nic3:
       id: 3
       type: ge
@@ -1482,6 +1626,8 @@ machines:
       mac_address: 78:ac:44:4d:3f:38
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 24
     nic2:
       id: 2
       type: ge
@@ -1489,6 +1635,8 @@ machines:
       mac_address: 78:ac:44:4d:3f:39
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 25
     nic3:
       id: 3
       type: ge
@@ -1532,6 +1680,8 @@ machines:
       mac_address: 78:ac:44:4c:d1:f4
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 26
     nic2:
       id: 2
       type: ge
@@ -1539,6 +1689,8 @@ machines:
       mac_address: 78:ac:44:4c:d1:f5
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 27
     nic3:
       id: 3
       type: ge
@@ -1582,6 +1734,8 @@ machines:
       mac_address: 78:ac:44:4c:da:ec
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 28
     nic2:
       id: 2
       type: ge
@@ -1589,6 +1743,8 @@ machines:
       mac_address: 78:ac:44:4c:da:ed
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 29
     nic3:
       id: 3
       type: ge
@@ -1632,6 +1788,8 @@ machines:
       mac_address: 78:ac:44:4d:42:2c
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 30
     nic2:
       id: 2
       type: ge
@@ -1639,6 +1797,8 @@ machines:
       mac_address: 78:ac:44:4d:42:2d
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 31
     nic3:
       id: 3
       type: ge
@@ -1682,6 +1842,8 @@ machines:
       mac_address: 78:ac:44:4c:d2:84
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 32
     nic2:
       id: 2
       type: ge
@@ -1689,6 +1851,8 @@ machines:
       mac_address: 78:ac:44:4c:d2:85
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 33
     nic3:
       id: 3
       type: ge
@@ -1732,6 +1896,8 @@ machines:
       mac_address: 78:ac:44:4d:3a:ec
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 34
     nic2:
       id: 2
       type: ge
@@ -1739,6 +1905,8 @@ machines:
       mac_address: 78:ac:44:4d:3a:ed
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-04
+      plugged_to_switch_port: 35
     nic3:
       id: 3
       type: ge
@@ -1807,6 +1975,7 @@ machines:
       mac_address: 78:ac:44:51:c0:54
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -1814,6 +1983,8 @@ machines:
       mac_address: 78:ac:44:51:c0:55
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-01
+      plugged_to_switch_port: 09
     nic3:
       id: 3
       type: ge
@@ -1867,6 +2038,7 @@ machines:
       mac_address: 78:ac:44:51:c0:58
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -1874,6 +2046,8 @@ machines:
       mac_address: 78:ac:44:51:c0:59
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-01
+      plugged_to_switch_port: 10
     nic3:
       id: 3
       type: ge
@@ -1927,6 +2101,7 @@ machines:
       mac_address: 78:ac:44:51:c3:1c
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -1934,6 +2109,8 @@ machines:
       mac_address: 78:ac:44:51:c3:1d
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port:
     nic3:
       id: 3
       type: ge
@@ -1987,6 +2164,7 @@ machines:
       mac_address: 78:ac:44:51:bf:18
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -1994,6 +2172,8 @@ machines:
       mac_address: 78:ac:44:51:bf:19
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 19
     nic3:
       id: 3
       type: ge
@@ -2047,6 +2227,7 @@ machines:
       mac_address: 78:ac:44:51:bf:ac
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -2054,6 +2235,8 @@ machines:
       mac_address: 78:ac:44:51:bf:ad
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 20
     nic3:
       id: 3
       type: ge
@@ -2107,6 +2290,7 @@ machines:
       mac_address: 78:ac:44:51:bf:14
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -2114,6 +2298,8 @@ machines:
       mac_address: 78:ac:44:51:bf:15
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 21
     nic3:
       id: 3
       type: ge
@@ -2167,6 +2353,7 @@ machines:
       mac_address: 78:ac:44:51:c0:4c
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -2174,6 +2361,8 @@ machines:
       mac_address: 78:ac:44:51:c0:4d
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 22
     nic3:
       id: 3
       type: ge
@@ -2227,6 +2416,7 @@ machines:
       mac_address: 78:ac:44:52:62:20
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -2234,6 +2424,8 @@ machines:
       mac_address: 78:ac:44:52:62:21
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-01
+      plugged_to_switch_port: 07
     nic3:
       id: 3
       type: ge
@@ -2282,6 +2474,7 @@ machines:
       mac_address: 78:ac:44:52:5d:f0
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: rh-it
     nic2:
       id: 2
       type: ge
@@ -2289,6 +2482,8 @@ machines:
       mac_address: 78:ac:44:52:5d:f1
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 08
     nic3:
       id: 3
       type: ge
@@ -2347,6 +2542,8 @@ machines:
       mac_address: 78:ac:44:4d:43:9c
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 00
     nic2:
       id: 2
       type: ge
@@ -2354,6 +2551,8 @@ machines:
       mac_address: 78:ac:44:4d:43:9d
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 01
     nic3:
       id: 3
       type: ge
@@ -2412,6 +2611,8 @@ machines:
       mac_address: 78:ac:44:4d:3b:1c
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 02
     nic2:
       id: 2
       type: ge
@@ -2419,6 +2620,8 @@ machines:
       mac_address: 78:ac:44:4d:3b:1d
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 03
     nic3:
       id: 3
       type: ge
@@ -2477,6 +2680,8 @@ machines:
       mac_address: 78:ac:44:4d:41:54
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 04
     nic2:
       id: 2
       type: ge
@@ -2484,6 +2689,8 @@ machines:
       mac_address: 78:ac:44:4d:41:55
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 05
     nic3:
       id: 3
       type: ge
@@ -2542,6 +2749,8 @@ machines:
       mac_address: 78:ac:44:4d:43:68
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 06
     nic2:
       id: 2
       type: ge
@@ -2549,6 +2758,8 @@ machines:
       mac_address: 78:ac:44:4d:43:69
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 07
     nic3:
       id: 3
       type: ge
@@ -2607,6 +2818,8 @@ machines:
       mac_address: 78:ac:44:4d:41:38
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 08
     nic2:
       id: 2
       type: ge
@@ -2614,6 +2827,8 @@ machines:
       mac_address: 78:ac:44:4d:41:39
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 09
     nic3:
       id: 3
       type: ge
@@ -2672,6 +2887,8 @@ machines:
       mac_address: 78:ac:44:4d:44:88
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 10
     nic2:
       id: 2
       type: ge
@@ -2679,6 +2896,8 @@ machines:
       mac_address: 78:ac:44:4d:44:89
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 11
     nic3:
       id: 3
       type: ge
@@ -2737,6 +2956,8 @@ machines:
       mac_address: 78:ac:44:4d:43:d8
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 12
     nic2:
       id: 2
       type: ge
@@ -2744,6 +2965,8 @@ machines:
       mac_address: 78:ac:44:4d:43:d9
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 13
     nic3:
       id: 3
       type: ge
@@ -2802,6 +3025,8 @@ machines:
       mac_address: 78:ac:44:4d:41:fc
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 14
     nic2:
       id: 2
       type: ge
@@ -2809,6 +3034,8 @@ machines:
       mac_address: 78:ac:44:4d:41:fd
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 15
     nic3:
       id: 3
       type: ge
@@ -2867,6 +3094,8 @@ machines:
       mac_address: 78:ac:44:4d:43:a0
       connected_to_lab_network: false
       use_for_lab_networking: false
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 16
     nic2:
       id: 2
       type: ge
@@ -2874,6 +3103,8 @@ machines:
       mac_address: 78:ac:44:4d:43:a1
       connected_to_lab_network: true
       use_for_lab_networking: true
+      plugged_to_switch: ge-05
+      plugged_to_switch_port: 17
     nic3:
       id: 3
       type: ge
