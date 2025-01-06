@@ -32,7 +32,7 @@ class DoOneTimeBoot(Thread):
        bmc_conn = LabBMCConnection.create_connection(m, args)
        sys_res = bmc_conn.get_system_resource()
 
-       override_enabled = "Once" if boot_target is not "None" else "Disabled"
+       override_enabled = "Once" if boot_target != "None" else "Disabled"
 
        patch_body = {
           "Boot": {
